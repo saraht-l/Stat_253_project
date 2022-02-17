@@ -75,49 +75,35 @@ lm.workflow <- workflow() %>%
 full_model <- fit(lm.workflow, data = NHL.regression2) 
 full_model %>% tidy()
 
-lm_spec <-
-    linear_reg() %>% 
-    set_engine(engine = 'lm') %>% 
-    set_mode('regression')
-baby_model<- fit(lm_spec,Salary~Wt+DftRd+G+A1+DftYr+GP+SA,data=NHL.regression2)
-baby_model%>% tidy()
+lm2.recipe <- recipe(Salary~Wt+DftRd+G+A1+DftYr+GP+SA, data = NHL.regression2) %>%
+    step_nzv(all_predictors()) %>% # removes variables with the same value
+    step_corr(all_numeric_predictors()) %>%
+    step_normalize(all_numeric_predictors()) %>% # important standardization step for LASSO
+    step_dummy(all_nominal_predictors()) # creates indicator variables for categorical variables
+
+lm2.workflow <- workflow() %>%
+    add_recipe(lm2.recipe) %>%
+    add_model(ols.spec)
+model2<- fit(lm2.workflow, data= NHL.regression2)
+model2%>%tidy
 
 ```
 
 #Calculate and collect CV metrics
 ```{r}
 
-#NEED TO COMPARE MULTIPLE MODELS TO EACH OTHER
-
 mod1.cv <- fit_resamples(lm.workflow,
   resamples = NHL.cv6, 
-  metrics = metric_set(mae, rmse, rsq)#SPECIFY HERE?
+  metrics = our_metrics
 ) %>%
 
   collect_metrics(summarize=TRUE)
 
 mod1.cv
 
-model_wf <- workflow() %>%
-  add_formula(Salary~Wt+DftRd+G+A1+DftYr+GP+SA) %>%
-  add_model(lm_spec)
-
-mod2.cv <- fit_resamples(model_wf,
-  resamples = NHL.cv6, 
-  metrics = metric_set(rmse, rsq, mae)
-)
-mod2.cv%>%collect_metrics()
-
-
-mode3_wf <- workflow() %>%
-  add_formula(Salary~Wt+DftRd+G) %>%
-  add_model(lm_spec)
-
-mod3.cv <- fit_resamples(mode3_wf,
-  resamples = NHL.cv6, 
-  metrics = metric_set(rmse, rsq, mae)
-)
-mod3.cv%>%collect_metrics()
+model2.cv<-fit_resamples(lm2.workflow, #model refits to different cross validation folds
+    resamples=NHL.cv6)
+model2.cv %>% collect_metrics(summarize=TRUE) #shows rsq, mse, rmse values.
 ```
 
 #LASSO
@@ -157,35 +143,27 @@ collect_metrics(tune_output) %>%
 
 
 best_penalty <- select_best(tune_output, metric = 'rmse') # choose best penalty value
-best_penalty2 <- select_best(tune_output, metric = 'mae') #different penalty value based on the mae
+
 Credit_final_wk <- finalize_workflow(lasso_wf_tune, best_penalty) # incorporates penalty value to workflow
-Credit_final_wk2<-finalize_workflow(lasso_wf_tune, best_penalty2) 
+ 
 Credit_final_fit <- fit(Credit_final_wk, data = NHL.regression2)
-Credit_final_fit2 <- fit(Credit_final_wk2, data = NHL.regression2)
+
 tidy(Credit_final_fit)
-tidy(Credit_final_fit2)
 
 ```
 
 #Fit and tune models 
 ```{r}
 tune_output %>% collect_metrics() %>% filter(penalty == (best_penalty %>% pull(penalty)))#metrics for first lasso model 
-tune_output %>% collect_metrics() %>% filter(penalty == (best_penalty2 %>% pull(penalty)))#metrics for second lasso model
+LASSOCV.cv<-fit_resamples(Credit_final_wk, #model refits to different cross validation folds
+    resamples=NHL.cv6)
+LASSOCV.cv %>% collect_metrics(summarize=TRUE) #shows rsq, and rmse values.
 ```
 
 #Visualize redisuals 
 ```{r}
 #Evaluate whether some quantitative predictors might be better modeled with nonlinear relationships
-mod2.cvoutput<- mod2.cv%>%
-  predict(new_data=NHL.cv6)%>%
-  bind_cols(NHL.cv6)%>%
-  mutate(resid= Salary-.pred)
-ggplot(mod2.cvoutput, aes(x = .pred, y=resid)) +
-  geom_point() +
-  geom_smooth() +
-  geom_hline(yintercept = 0, color = "red") +
-  labs(x = "Fitted values", y = "Residuals") + 
-  theme_classic()
+
 
 ```
 
