@@ -1,6 +1,6 @@
 ---
 title: "Regression"
-author: "Claire McHenry"
+author: "Claire, Hilary, Sarah, Phebe"
 date: "2/15/2022"
 output: html_document
 ---
@@ -60,24 +60,25 @@ lm.recipe <- recipe(Salary ~ ., data = NHL.regression) %>%
     step_nzv(all_predictors()) %>% # removes variables with the same value
     step_corr() %>%
     step_normalize(all_numeric_predictors()) %>% # important standardization step for LASSO
-    step_dummy(all_nominal_predictors())  # creates indicator variables for categorical variables
+    step_dummy(all_nominal_predictors()) # creates indicator variables for categorical variables
 
 lm.wrokflow <- workflow() %>%
     add_recipe(lm.recipe) %>%
     add_model(ols.spec)
     
-full_model <- fit(lm.workflow), data = NHL.regression) 
+full_model <- fit(lm.workflow, data = NHL.regression) 
 
 full_model %>% tidy()
 ```
 
 #Calculate and collect CV metrics
 ```{r}
+
 #NEED TO COMPARE MULTIPLE MODELS TO EACH OTHER
 
 mod1.cv <- fit_resamples(lm.workflow,
   resamples = NHL.cv6, 
-  metrics = metric_set()#SPECIFY HERE?
+  metrics = metric_set(mae, rsme)#SPECIFY HERE?
 ) %>%
 
   collect_metrics(summarize=TRUE)
