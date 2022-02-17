@@ -82,23 +82,11 @@ lm.workflow <- workflow() %>%
 full_model <- fit(lm.workflow, data = NHL.regression2) 
 full_model %>% tidy()
 
-lm2.recipe <- recipe(Salary~Wt+DftRd+G+A1+DftYr+GP+SA, data = NHL.regression2) %>%
-    step_nzv(all_predictors()) %>% # removes variables with the same value
-    step_corr(all_numeric_predictors()) %>%
-    step_normalize(all_numeric_predictors()) %>% # important standardization step for LASSO
-    step_dummy(all_nominal_predictors()) # creates indicator variables for categorical variables
-
-lm2.workflow <- workflow() %>%
-    add_recipe(lm2.recipe) %>%
-    add_model(ols.spec)
-model2<- fit(lm2.workflow, data= NHL.regression2)
-model2%>%tidy
-
 ```
 
 #Calculate and collect CV metrics
 ```{r}
-
+#THIS CODE IS NOT WORKING???
 #NEED TO COMPARE MULTIPLE MODELS TO EACH OTHER#
 
 mod1.cv <- fit_resamples(lm.workflow,
@@ -106,7 +94,7 @@ mod1.cv <- fit_resamples(lm.workflow,
   metrics = our_metrics
 ) %>%
 
-  collect_metrics(summarize=TRUE)
+collect_metrics(summarize=TRUE)
 
 mod1.cv
 
@@ -174,8 +162,94 @@ LASSOCV.cv %>% collect_metrics(summarize=TRUE) #shows rsq, and rmse values.
 #Visualize redisuals 
 ```{r}
 #Evaluate whether some quantitative predictors might be better modeled with nonlinear relationships
+spline_mod_output <- ls_mod %>%
+    predict(new_data = NHL.regression2) %>% #generates a column of predictions 
+    bind_cols(NHL.regression2) %>% #takes what you are inputting and binds it to something else
+    mutate(resid = .pred - Salary)
 
+head(spline_mod_output)
 
+ggplot(spline_mod_output, aes(x = .pred, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = Ht, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = Wt, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(spline_mod_output, aes(x = Hand, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(spline_mod_output, aes(x = DftRd, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(spline_mod_output, aes(x = G, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(spline_mod_output, aes(x = A1, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ggplot(spline_mod_output, aes(x = DftYr, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ggplot(spline_mod_output, aes(x = dzFOL, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ggplot(spline_mod_output, aes(x = Country, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ ggplot(spline_mod_output, aes(x = GP, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(spline_mod_output, aes(x = Position, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+  ggplot(spline_mod_output, aes(x = SA, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ 
+ 
+ 
 ```
 
 Which variables are most important predictors of your quantitative outcome? Justify your answer. Do the methods you've applied reach consensus on which variables are most important? What insights are expected? Surprising? NOTE: if some (but not all) of the indicator terms for a categorical predictor are selected in the final models, the whole predictor should be treated as selected. 
