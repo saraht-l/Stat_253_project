@@ -94,7 +94,7 @@ model2%>%tidy
 
 mod1.cv <- fit_resamples(lm.workflow,
   resamples = NHL.cv6, 
-  metrics = our_metrics
+  metrics = metric_set(mae,rsq,rmse)
 ) %>%
 
   collect_metrics(summarize=TRUE)
@@ -102,7 +102,7 @@ mod1.cv <- fit_resamples(lm.workflow,
 mod1.cv
 
 model2.cv<-fit_resamples(lm2.workflow, #model refits to different cross validation folds
-    resamples=NHL.cv6)
+    resamples=NHL.cv6,metrics = metric_set(mae,rsq,rmse))
 model2.cv %>% collect_metrics(summarize=TRUE) #shows rsq, mse, rmse values.
 ```
 
@@ -163,8 +163,71 @@ LASSOCV.cv %>% collect_metrics(summarize=TRUE) #shows rsq, and rmse values.
 #Visualize redisuals 
 ```{r}
 #Evaluate whether some quantitative predictors might be better modeled with nonlinear relationships
+LASSO_mod_output <- NHL.regression2%>%
+  bind_cols(predict(Credit_final_fit,new_data=NHL.regression2 ))%>%
+  mutate(resid=Salary-.pred)
+ggplot(LASSO_mod_output, aes(y=resid,x=Wt)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+ggplot(LASSO_mod_output, aes(y=resid,x=Ht)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+ggplot(LASSO_mod_output, aes(y=resid,x=Hand)) +
+    geom_boxplot() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+ggplot(LASSO_mod_output, aes(y=resid,x=DftRd)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
 
+ggplot(LASSO_mod_output, aes(y=resid,x=G)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
 
+ggplot(LASSO_mod_output, aes(y=resid,x=A1)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+ggplot(LASSO_mod_output, aes(y=resid,x=DftYr)) + #could be non linear babes
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+ggplot(LASSO_mod_output, aes(y=resid,x=dzFOL)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+ggplot(LASSO_mod_output, aes(y=resid,x=Country)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+ggplot(LASSO_mod_output, aes(y=resid,x=GP)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+ggplot(LASSO_mod_output, aes(y=resid,x=Position)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+ggplot(LASSO_mod_output, aes(y=resid,x=SA)) + #could be non linear babes
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
 ```
 
 Which variables are most important predictors of your quantitative outcome? Justify your answer. Do the methods you've applied reach consensus on which variables are most important? What insights are expected? Surprising? NOTE: if some (but not all) of the indicator terms for a categorical predictor are selected in the final models, the whole predictor should be treated as selected. 
