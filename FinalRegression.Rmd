@@ -30,7 +30,7 @@ NHL.train <- read.csv("train.csv")
 #Select 14 variables to use in the regression model
 ```{r}
 NHL.regression <- NHL.train %>%
-  select(Salary, Ht, Wt, Hand, DftRd, Born, G, A1, DftYr, dzFOL, Cntry, GP, Position, SA)
+  select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Cntry, GP, Position, SA)
 
 #MGL, OpFOW not found in this dataset 
 #MGL = Games lost due to injury 
@@ -40,6 +40,8 @@ NHL.regression <- NHL.train %>%
 #Data cleaning 
 ```{r}
 #DO WE NEED TO CLEAN THE DATA
+#ideally make the birth year one whole variable instead of a bunch of yes or no (born variables)
+
 ```
 
 #Creation of CV folds 
