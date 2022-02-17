@@ -161,92 +161,90 @@ LASSOCV.cv %>% collect_metrics(summarize=TRUE) #shows rsq, and rmse values.
 ```{r}
 #Evaluate whether some quantitative predictors might be better modeled with nonlinear relationships
 
+
 LASSO_mod_output <- NHL.regression2%>%
   bind_cols(predict(Credit_final_fit,new_data=NHL.regression2 ))%>%
   mutate(resid=Salary-.pred)
 
 
 
-spline_mod_output <- ls_mod %>%
-    predict(new_data = NHL.regression2) %>% #generates a column of predictions 
-    bind_cols(NHL.regression2) %>% #takes what you are inputting and binds it to something else
-    mutate(resid = .pred - Salary)
 
-head(spline_mod_output)
 
-ggplot(spline_mod_output, aes(x = .pred, y = resid)) +
+head(LASSO_mod_output)
+
+ggplot(LASSO_mod_output, aes(x = .pred, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
 
-ggplot(spline_mod_output, aes(x = Ht, y = resid)) +
+ggplot(LASSO_mod_output, aes(x = Ht, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
 
-ggplot(spline_mod_output, aes(x = Wt, y = resid)) +
+ggplot(LASSO_mod_output, aes(x = Wt, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
  
- ggplot(spline_mod_output, aes(x = Hand, y = resid)) +
+ ggplot(LASSO_mod_output, aes(x = Hand, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
  
- ggplot(spline_mod_output, aes(x = DftRd, y = resid)) +
+ ggplot(LASSO_mod_output, aes(x = DftRd, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
  
- ggplot(spline_mod_output, aes(x = G, y = resid)) +
+ ggplot(LASSO_mod_output, aes(x = G, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
  
- ggplot(spline_mod_output, aes(x = A1, y = resid)) +
+ ggplot(LASSO_mod_output, aes(x = A1, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
  
-ggplot(spline_mod_output, aes(x = DftYr, y = resid)) +
+ggplot(LASSO_mod_output, aes(x = DftYr, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
  
-ggplot(spline_mod_output, aes(x = dzFOL, y = resid)) +
+ggplot(LASSO_mod_output, aes(x = dzFOL, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
  
-ggplot(spline_mod_output, aes(x = Country, y = resid)) +
+ggplot(LASSO_mod_output, aes(x = Country, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
 
- ggplot(spline_mod_output, aes(x = GP, y = resid)) +
+ ggplot(LASSO_mod_output, aes(x = GP, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
  
- ggplot(spline_mod_output, aes(x = Position, y = resid)) +
+ ggplot(LASSO_mod_output, aes(x = Position, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
  
-  ggplot(spline_mod_output, aes(x = SA, y = resid)) +
+  ggplot(LASSO_mod_output, aes(x = SA, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
@@ -257,10 +255,52 @@ ggplot(spline_mod_output, aes(x = Country, y = resid)) +
 
 Which variables are most important predictors of your quantitative outcome? Justify your answer. Do the methods you've applied reach consensus on which variables are most important? What insights are expected? Surprising? NOTE: if some (but not all) of the indicator terms for a categorical predictor are selected in the final models, the whole predictor should be treated as selected. 
 
->
+
+```{r}
+
+glmnet_output <- Credit_final_fit %>% extract_fit_parsnip() %>% pluck('fit') # way to get the original glmnet output
+
+lambdas <- glmnet_output$lambda
+coefs_lambdas <- 
+  coefficients(glmnet_output, s = lambdas )  %>% 
+  as.matrix() %>%  
+  t() %>% 
+  as.data.frame() %>% 
+  mutate(lambda = lambdas ) %>% 
+  select(lambda, everything(), -`(Intercept)`) %>% 
+  pivot_longer(cols = -lambda, 
+               names_to = "term", 
+               values_to = "coef") %>%
+  mutate(var = map_chr(stringr::str_split(term,"_"),~.[1]))
+
+coefs_lambdas %>%
+  ggplot(aes(x = lambda, y = coef, group = term, color = var)) +
+  geom_line() +
+  geom_vline(xintercept = best_penalty %>% pull(penalty), linetype = 'dashed') + 
+  theme_classic() + 
+  theme(legend.position = "bottom", legend.text=element_text(size=8))
+```
 
 
 Best overall model based on investigations so far? Predictive accuracy? Interpretability? A combination of both?
+```{r}
+tune_output %>% collect_metrics() %>% filter(penalty == (best_penalty %>% pull(penalty)))#metrics for first lasso model 
+LASSOCV.cv<-fit_resamples(Credit_final_wk, #model refits to different cross validation folds
+    resamples=NHL.cv6,metrics = metric_set(mae,rsq,rmse))
+LASSOCV.cv %>% collect_metrics(summarize=TRUE) 
+mod1.cv <- fit_resamples(lm.workflow,
+  resamples = NHL.cv6, 
+  metrics = metric_set(mae,rsq,rmse)
+) %>%
+
+collect_metrics(summarize=TRUE)
+
+mod1.cv
+
+model2.cv<-fit_resamples(lm2.workflow, #model refits to different cross validation folds
+    resamples=NHL.cv6,metrics = metric_set(mae,rsq,rmse))
+model2.cv %>% collect_metrics(summarize=TRUE) #shows rsq, mse, rmse values.
+```
 
 > 
 
