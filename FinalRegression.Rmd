@@ -1,6 +1,6 @@
 ---
 title: "Regression"
-author: "Claire McHenry"
+author: "Claire, Hilary, Sarah, Phebe"
 date: "2/15/2022"
 output: html_document
 ---
@@ -58,26 +58,27 @@ ols.spec <-
 
 lm.recipe <- recipe(Salary ~ ., data = NHL.regression) %>%
     step_nzv(all_predictors()) %>% # removes variables with the same value
-    step_corr() %>%
+ #   step_corr() %>%
     step_normalize(all_numeric_predictors()) %>% # important standardization step for LASSO
-    step_dummy(all_nominal_predictors())  # creates indicator variables for categorical variables
+    step_dummy(all_nominal_predictors()) # creates indicator variables for categorical variables
 
-lm.wrokflow <- workflow() %>%
+lm.workflow <- workflow() %>%
     add_recipe(lm.recipe) %>%
     add_model(ols.spec)
     
-full_model <- fit(lm.workflow), data = NHL.regression) 
+full_model <- fit(lm.workflow, data = NHL.regression) 
 
 full_model %>% tidy()
 ```
 
 #Calculate and collect CV metrics
 ```{r}
+
 #NEED TO COMPARE MULTIPLE MODELS TO EACH OTHER
 
 mod1.cv <- fit_resamples(lm.workflow,
   resamples = NHL.cv6, 
-  metrics = metric_set()#SPECIFY HERE?
+  metrics = metric_set(mae, rmse)#SPECIFY HERE?
 ) %>%
 
   collect_metrics(summarize=TRUE)
@@ -96,7 +97,7 @@ lasso.spec <-
 
 # Workflow (Recipe + Model)
 lasso_wf_tune <- workflow() %>% 
-  add_recipe(lm.recpie) %>% # recipe defined above
+  add_recipe(lm.recipe) %>% # recipe defined above
   add_model(lasso.spec) 
 
 # Tune Model (trying a variety of values of Lambda penalty)
@@ -111,6 +112,23 @@ tune_output <- tune_grid( # new function for tuning parameters
   metrics = metric_set(rmse, mae),
   grid = penalty_grid # penalty grid defined above
 )
+
+
+autoplot(tune_output)
+
+collect_metrics(tune_output) %>%
+  filter(.metric == 'rmse') %>%
+  select(penalty, rmse = mean) 
+
+
+best_penalty <- select_best(tune_output, metric = 'rmse') # choose best penalty value
+
+Credit_final_wk <- finalize_workflow(lasso_wf_tune, best_penalty) # incorporates penalty value to workflow
+
+Credit_final_fit <- fit(Credit_final_wk, data = NHL.regression)
+
+tidy(Credit_final_fit)
+
 ```
 
 #Fit and tune models 
