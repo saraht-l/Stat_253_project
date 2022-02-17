@@ -40,6 +40,7 @@ NHL.regression <- NHL.train %>%
 #Data cleaning 
 ```{r}
 #DO WE NEED TO CLEAN THE DATA
+
 ```
 
 #Creation of CV folds 
@@ -56,9 +57,9 @@ ols.spec <-
     set_engine(engine = 'lm') %>% 
     set_mode('regression')
 
-lm.recipe <- recipe(Salary ~ ., data = NHL.regression) %>%
+lm.recipe <- recipe(Salary ~ Ht, data = NHL.regression) %>%
     step_nzv(all_predictors()) %>% # removes variables with the same value
- #   step_corr() %>%
+    step_corr(all_numeric_predictors()) %>%
     step_normalize(all_numeric_predictors()) %>% # important standardization step for LASSO
     step_dummy(all_nominal_predictors()) # creates indicator variables for categorical variables
 
@@ -74,7 +75,7 @@ full_model %>% tidy()
 #Calculate and collect CV metrics
 ```{r}
 
-#NEED TO COMPARE MULTIPLE MODELS TO EACH OTHER
+#NEED TO COMPARE MULTIPLE MODELS TO EACH OTHER#
 
 mod1.cv <- fit_resamples(lm.workflow,
   resamples = NHL.cv6, 
@@ -153,7 +154,8 @@ Best overall model based on investigations so far? Predictive accuracy? Interpre
 
 Are there any harms that may come from your analyses and/or how the data were collected? What cautions do you want to keep in mind when communicating your work? 
 
->
+> By making these assessments and pushing out our findings we could be harming outlier players. For example, if our models end up showing that athletes of specific height and specific weight are more likely to succeed, incoming athletes into the NHL may start to desire those weights which could harm them psychologically. However, despite being a weight that may get less pay, there is a possibility that they are an outlier player who could get paid more. 
+> Additionally, this data is from the 2016 to 2017 season. As the economy changes, inflation occurs, and the interest in the NHL fluctuates, this will influence the salary of players. We want to keep in mind that when we communicate this data, we make it clear the time period this data reflects and make it known that it may not be completely applicable to previous or future NHL season. 
 
 
 
