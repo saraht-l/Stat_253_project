@@ -87,8 +87,6 @@ full_model %>% tidy()
 #Calculate and collect CV metrics
 ```{r}
 #THIS CODE IS NOT WORKING???
-#NEED TO COMPARE MULTIPLE MODELS TO EACH OTHER#
-
 mod1.cv <- fit_resamples(lm.workflow,
   resamples = NHL.cv6, 
   metrics = our_metrics
@@ -246,9 +244,6 @@ ggplot(spline_mod_output, aes(x = Country, y = resid)) +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
- 
- 
- 
  
 ```
 
