@@ -30,7 +30,7 @@ NHL.train <- read.csv("train.csv")
 #Select 14 variables to use in the regression model
 ```{r}
 NHL.regression <- NHL.train %>%
-  select(Salary, Ht, Wt, Hand, DftRd, Born, G, A1, DftYr, dzFOL, Cntry, GP, Position, SA)
+  select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Cntry, GP,Position,SA)
 
 #MGL, OpFOW not found in this dataset 
 #MGL = Games lost due to injury 
@@ -40,6 +40,14 @@ NHL.regression <- NHL.train %>%
 #Data cleaning 
 ```{r}
 #DO WE NEED TO CLEAN THE DATA
+<<<<<<< HEAD
+=======
+#ideally make the birth year one whole variable instead of a bunch of yes or no (born variables)
+NHL.regression2 <- NHL.regression %>%  
+  transform(Cntry,Country=as.numeric(factor(Cntry))) %>% 
+  select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Country, GP, Position, SA)
+
+>>>>>>> a32aa6229e8e0746064183693be3bf0837bcc0eb
 
 ```
 
@@ -47,7 +55,7 @@ NHL.regression <- NHL.train %>%
 ```{r}
 set.seed(123)
 
-NHL.cv6 <- vfold_cv(NHL.regression, v=6)
+NHL.cv6 <- vfold_cv(NHL.regression2, v=6)
 ```
 
 #Model spec
@@ -57,7 +65,11 @@ ols.spec <-
     set_engine(engine = 'lm') %>% 
     set_mode('regression')
 
+#<<<<<<< HEAD
 lm.recipe <- recipe(Salary ~ Ht, data = NHL.regression) %>%
+
+
+lm.recipe <- recipe(Salary ~ ., data = NHL.regression2) %>%
     step_nzv(all_predictors()) %>% # removes variables with the same value
     step_corr(all_numeric_predictors()) %>%
     step_normalize(all_numeric_predictors()) %>% # important standardization step for LASSO
@@ -66,25 +78,44 @@ lm.recipe <- recipe(Salary ~ Ht, data = NHL.regression) %>%
 lm.workflow <- workflow() %>%
     add_recipe(lm.recipe) %>%
     add_model(ols.spec)
-    
-full_model <- fit(lm.workflow, data = NHL.regression) 
 
+full_model <- fit(lm.workflow, data = NHL.regression2) 
 full_model %>% tidy()
+
+lm2.recipe <- recipe(Salary~Wt+DftRd+G+A1+DftYr+GP+SA, data = NHL.regression2) %>%
+    step_nzv(all_predictors()) %>% # removes variables with the same value
+    step_corr(all_numeric_predictors()) %>%
+    step_normalize(all_numeric_predictors()) %>% # important standardization step for LASSO
+    step_dummy(all_nominal_predictors()) # creates indicator variables for categorical variables
+
+lm2.workflow <- workflow() %>%
+    add_recipe(lm2.recipe) %>%
+    add_model(ols.spec)
+model2<- fit(lm2.workflow, data= NHL.regression2)
+model2%>%tidy
+
 ```
 
 #Calculate and collect CV metrics
 ```{r}
 
+<<<<<<< HEAD
 #NEED TO COMPARE MULTIPLE MODELS TO EACH OTHER#
 
+=======
+>>>>>>> a32aa6229e8e0746064183693be3bf0837bcc0eb
 mod1.cv <- fit_resamples(lm.workflow,
   resamples = NHL.cv6, 
-  metrics = metric_set(mae, rmse)#SPECIFY HERE?
+  metrics = our_metrics
 ) %>%
 
   collect_metrics(summarize=TRUE)
 
 mod1.cv
+
+model2.cv<-fit_resamples(lm2.workflow, #model refits to different cross validation folds
+    resamples=NHL.cv6)
+model2.cv %>% collect_metrics(summarize=TRUE) #shows rsq, mse, rmse values.
 ```
 
 #LASSO
@@ -103,7 +134,7 @@ lasso_wf_tune <- workflow() %>%
 
 # Tune Model (trying a variety of values of Lambda penalty)
 penalty_grid <- grid_regular(
-  penalty(range = c(-3, 1)), #log10 transformed
+  penalty(range = c(0, 8)), #log10 transformed
   levels = 30)
 
 
@@ -122,11 +153,12 @@ collect_metrics(tune_output) %>%
   select(penalty, rmse = mean) 
 
 
+
 best_penalty <- select_best(tune_output, metric = 'rmse') # choose best penalty value
 
 Credit_final_wk <- finalize_workflow(lasso_wf_tune, best_penalty) # incorporates penalty value to workflow
-
-Credit_final_fit <- fit(Credit_final_wk, data = NHL.regression)
+ 
+Credit_final_fit <- fit(Credit_final_wk, data = NHL.regression2)
 
 tidy(Credit_final_fit)
 
@@ -134,12 +166,17 @@ tidy(Credit_final_fit)
 
 #Fit and tune models 
 ```{r}
-
+tune_output %>% collect_metrics() %>% filter(penalty == (best_penalty %>% pull(penalty)))#metrics for first lasso model 
+LASSOCV.cv<-fit_resamples(Credit_final_wk, #model refits to different cross validation folds
+    resamples=NHL.cv6)
+LASSOCV.cv %>% collect_metrics(summarize=TRUE) #shows rsq, and rmse values.
 ```
 
 #Visualize redisuals 
 ```{r}
 #Evaluate whether some quantitative predictors might be better modeled with nonlinear relationships
+
+
 ```
 
 Which variables are most important predictors of your quantitative outcome? Justify your answer. Do the methods you've applied reach consensus on which variables are most important? What insights are expected? Surprising? NOTE: if some (but not all) of the indicator terms for a categorical predictor are selected in the final models, the whole predictor should be treated as selected. 

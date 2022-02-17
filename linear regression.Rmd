@@ -1,0 +1,26 @@
+---
+title: "Linear Regression Stat 253"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(readr) #install.packages('readr') in console if package not found
+library(ggplot2)
+library(dplyr)
+library(tidymodels)
+```
+```{r}
+tidymodels_prefer()
+hockeypoky <- read_csv('train.csv')
+```
+
