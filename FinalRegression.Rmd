@@ -160,86 +160,86 @@ LASSOCV.cv %>% collect_metrics(summarize=TRUE) #shows rsq, and rmse values.
 #Visualize redisuals 
 ```{r}
 #Evaluate whether some quantitative predictors might be better modeled with nonlinear relationships
-spline_mod_output <- ls_mod %>%
+mod_output <- ls_mod %>%
     predict(new_data = NHL.regression2) %>% #generates a column of predictions 
     bind_cols(NHL.regression2) %>% #takes what you are inputting and binds it to something else
     mutate(resid = .pred - Salary)
 
-head(spline_mod_output)
+head(mod_output)
 
-ggplot(spline_mod_output, aes(x = .pred, y = resid)) +
-    geom_point() +
-    geom_smooth() +
-    geom_hline(yintercept = 0, color = "red") +
-    theme_classic()
-
-ggplot(spline_mod_output, aes(x = Ht, y = resid)) +
+ggplot(mod_output, aes(x = .pred, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
 
-ggplot(spline_mod_output, aes(x = Wt, y = resid)) +
-    geom_point() +
-    geom_smooth() +
-    geom_hline(yintercept = 0, color = "red") +
-    theme_classic()
- 
- ggplot(spline_mod_output, aes(x = Hand, y = resid)) +
-    geom_point() +
-    geom_smooth() +
-    geom_hline(yintercept = 0, color = "red") +
-    theme_classic()
- 
- ggplot(spline_mod_output, aes(x = DftRd, y = resid)) +
-    geom_point() +
-    geom_smooth() +
-    geom_hline(yintercept = 0, color = "red") +
-    theme_classic()
- 
- ggplot(spline_mod_output, aes(x = G, y = resid)) +
-    geom_point() +
-    geom_smooth() +
-    geom_hline(yintercept = 0, color = "red") +
-    theme_classic()
- 
- ggplot(spline_mod_output, aes(x = A1, y = resid)) +
-    geom_point() +
-    geom_smooth() +
-    geom_hline(yintercept = 0, color = "red") +
-    theme_classic()
- 
-ggplot(spline_mod_output, aes(x = DftYr, y = resid)) +
-    geom_point() +
-    geom_smooth() +
-    geom_hline(yintercept = 0, color = "red") +
-    theme_classic()
- 
-ggplot(spline_mod_output, aes(x = dzFOL, y = resid)) +
-    geom_point() +
-    geom_smooth() +
-    geom_hline(yintercept = 0, color = "red") +
-    theme_classic()
- 
-ggplot(spline_mod_output, aes(x = Country, y = resid)) +
+ggplot(mod_output, aes(x = Ht, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
 
- ggplot(spline_mod_output, aes(x = GP, y = resid)) +
+ggplot(mod_output, aes(x = Wt, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
  
- ggplot(spline_mod_output, aes(x = Position, y = resid)) +
+ ggplot(mod_output, aes(x = Hand, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
  
-  ggplot(spline_mod_output, aes(x = SA, y = resid)) +
+ ggplot(mod_output, aes(x = DftRd, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(mod_output, aes(x = G, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(mod_output, aes(x = A1, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ggplot(mod_output, aes(x = DftYr, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ggplot(mod_output, aes(x = dzFOL, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ggplot(mod_output, aes(x = Country, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ ggplot(mod_output, aes(x = GP, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(mod_output, aes(x = Position, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+  ggplot(mod_output, aes(x = SA, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
