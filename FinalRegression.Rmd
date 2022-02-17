@@ -96,7 +96,7 @@ collect_metrics(summarize=TRUE)
 
 mod1.cv
 
-model2.cv<-fit_resamples(lm2.workflow, #model refits to different cross validation folds
+model2.cv<-fit_resamples(lm.workflow, #model refits to different cross validation folds
     resamples=NHL.cv6,metrics = metric_set(mae,rsq,rmse))
 model2.cv %>% collect_metrics(summarize=TRUE) #shows rsq, mse, rmse values.
 ```
@@ -302,7 +302,10 @@ model2.cv<-fit_resamples(lm2.workflow, #model refits to different cross validati
 model2.cv %>% collect_metrics(summarize=TRUE) #shows rsq, mse, rmse values.
 ```
 
-> 
+Summarize investigations
+Decide on an overall best model based on your investigations so far. To do this, make clear your analysis goals. Predictive accuracy? Interpretability? A combination of both?
+> We are unclear what the best model is based on our investigations thus far. We are aware that a lot of our variables are not linear as shown in our residual plots. We also know that some of our variables willl likely need to be transformed and we will possbily have to include an interaction term in our regression models. 
+Our goals include understanding which of these 14 variables predicts the NHL salary of all players. Right now, there is terrible predictive accuracy. 
 
 
 Are there any harms that may come from your analyses and/or how the data were collected? What cautions do you want to keep in mind when communicating your work? 
