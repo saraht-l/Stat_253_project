@@ -22,13 +22,16 @@ tidymodels_prefer()
 
 #Load in the datasets
 ```{r}
+#Testing data
 NHL.test <- read.csv("test.csv")
 
+#Training data
 NHL.train <- read.csv("train.csv")
 ```
 
 #Select 14 variables to use in the regression model
 ```{r}
+#Clean the data so that there are 14 variables we are looking at 
 NHL.regression <- NHL.train %>%
   select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Cntry, GP,Position,SA)
 
@@ -39,45 +42,44 @@ NHL.regression <- NHL.train %>%
 
 #Data cleaning 
 ```{r}
-#DO WE NEED TO CLEAN THE DATA
-<<<<<<< HEAD
-=======
+#Transform the data so that it's as.numeric for Country 
 #ideally make the birth year one whole variable instead of a bunch of yes or no (born variables)
 NHL.regression2 <- NHL.regression %>%  
   transform(Cntry,Country=as.numeric(factor(Cntry))) %>% 
   select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Country, GP, Position, SA)
-
->>>>>>> a32aa6229e8e0746064183693be3bf0837bcc0eb
 
 ```
 
 #Creation of CV folds 
 ```{r}
 set.seed(123)
-
+# 6 fold cross validation
 NHL.cv6 <- vfold_cv(NHL.regression2, v=6)
 ```
 
 #Model spec
 ```{r}
+# model specification for OLS
 ols.spec <-
     linear_reg() %>% 
     set_engine(engine = 'lm') %>% 
     set_mode('regression')
 
-#<<<<<<< HEAD
-lm.recipe <- recipe(Salary ~ Ht, data = NHL.regression) %>%
-
-
+# model recipe 
 lm.recipe <- recipe(Salary ~ ., data = NHL.regression2) %>%
     step_nzv(all_predictors()) %>% # removes variables with the same value
     step_corr(all_numeric_predictors()) %>%
     step_normalize(all_numeric_predictors()) %>% # important standardization step for LASSO
     step_dummy(all_nominal_predictors()) # creates indicator variables for categorical variables
 
+# model workflow
 lm.workflow <- workflow() %>%
     add_recipe(lm.recipe) %>%
     add_model(ols.spec)
+
+
+
+# What is all of this???? 
 
 full_model <- fit(lm.workflow, data = NHL.regression2) 
 full_model %>% tidy()
@@ -99,11 +101,8 @@ model2%>%tidy
 #Calculate and collect CV metrics
 ```{r}
 
-<<<<<<< HEAD
 #NEED TO COMPARE MULTIPLE MODELS TO EACH OTHER#
 
-=======
->>>>>>> a32aa6229e8e0746064183693be3bf0837bcc0eb
 mod1.cv <- fit_resamples(lm.workflow,
   resamples = NHL.cv6, 
   metrics = our_metrics
@@ -120,12 +119,14 @@ model2.cv %>% collect_metrics(summarize=TRUE) #shows rsq, mse, rmse values.
 
 #LASSO
 ```{r}
-# Lasso Model Spec with tune
+# Model specifications LASSO
 lasso.spec <- 
   linear_reg() %>%
   set_args(mixture = 1, penalty = tune()) %>% ## mixture = 1 indicates Lasso
   set_engine(engine = 'glmnet') %>% #note we are using a different engine
   set_mode('regression') 
+
+# rec is same as OLS
 
 # Workflow (Recipe + Model)
 lasso_wf_tune <- workflow() %>% 
@@ -145,16 +146,16 @@ tune_output <- tune_grid( # new function for tuning parameters
   grid = penalty_grid # penalty grid defined above
 )
 
+# Select best model & fit
+best_penalty <- tune_output %>% 
+  select_by_one_std_err(metric = 'mae', desc(penalty))
 
-autoplot(tune_output)
-
-collect_metrics(tune_output) %>%
-  filter(.metric == 'rmse') %>%
-  select(penalty, rmse = mean) 
-
-
-
-best_penalty <- select_best(tune_output, metric = 'rmse') # choose best penalty value
+ls_mod <-  best_penalty  %>% 
+  finalize_workflow(lasso_wf_tune,.) %>%
+  fit(data = NHL.regression2) 
+    
+# Note which variable is the "least" important    
+ls_mod %>% tidy()
 
 Credit_final_wk <- finalize_workflow(lasso_wf_tune, best_penalty) # incorporates penalty value to workflow
  
@@ -192,6 +193,7 @@ Best overall model based on investigations so far? Predictive accuracy? Interpre
 Are there any harms that may come from your analyses and/or how the data were collected? What cautions do you want to keep in mind when communicating your work? 
 
 > By making these assessments and pushing out our findings we could be harming outlier players. For example, if our models end up showing that athletes of specific height and specific weight are more likely to succeed, incoming athletes into the NHL may start to desire those weights which could harm them psychologically. However, despite being a weight that may get less pay, there is a possibility that they are an outlier player who could get paid more. 
+
 > Additionally, this data is from the 2016 to 2017 season. As the economy changes, inflation occurs, and the interest in the NHL fluctuates, this will influence the salary of players. We want to keep in mind that when we communicate this data, we make it clear the time period this data reflects and make it known that it may not be completely applicable to previous or future NHL season. 
 
 
