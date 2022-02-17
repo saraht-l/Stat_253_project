@@ -77,9 +77,7 @@ lm.workflow <- workflow() %>%
     add_recipe(lm.recipe) %>%
     add_model(ols.spec)
 
-
-
-# What is all of this???? 
+# fit the model
 
 full_model <- fit(lm.workflow, data = NHL.regression2) 
 full_model %>% tidy()
