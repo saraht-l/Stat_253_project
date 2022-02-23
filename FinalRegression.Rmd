@@ -324,6 +324,81 @@ Are there any harms that may come from your analyses and/or how the data were co
 # Determine number of knots (deg_free) and fit a smoothing spline and use edf to inform your choice
 ```
 
+```{r}
+ggplot(NHL.regression2, aes(x=Ht, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=Wt, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=Hand, y=Salary)) +
+    geom_boxplot() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=DftRd, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=G, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=A1, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=DftYr, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=dzFOL, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+ 
+ ggplot(NHL.regression2, aes(x=Country, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+ 
+ ggplot(NHL.regression2, aes(x=GP, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+ 
+ ggplot(NHL.regression2, aes(x=Position, y=Salary)) +
+    geom_boxplot() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    
+    theme_classic()
+ 
+ ggplot(NHL.regression2, aes(x=SA, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+```
+
 
 Compare insights from variable importance analyses here and the corresponding results from Homework 1.
 Now after having accounted for nonlinearity, have the most relevant predictors changed?
