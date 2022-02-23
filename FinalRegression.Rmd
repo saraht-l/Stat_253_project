@@ -160,13 +160,9 @@ LASSOCV.cv %>% collect_metrics(summarize=TRUE) #shows rsq, and rmse values.
 ```{r}
 #Evaluate whether some quantitative predictors might be better modeled with nonlinear relationships
 
-
 LASSO_mod_output <- NHL.regression2%>%
   bind_cols(predict(Credit_final_fit,new_data=NHL.regression2 ))%>%
   mutate(resid=Salary-.pred)
-
-
-
 
 
 head(LASSO_mod_output)
@@ -190,7 +186,7 @@ ggplot(LASSO_mod_output, aes(x = Wt, y = resid)) +
     theme_classic()
  
  ggplot(LASSO_mod_output, aes(x = Hand, y = resid)) +
-    geom_point() +
+    geom_boxplot() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
@@ -238,7 +234,7 @@ ggplot(LASSO_mod_output, aes(x = Country, y = resid)) +
     theme_classic()
  
  ggplot(LASSO_mod_output, aes(x = Position, y = resid)) +
-    geom_point() +
+    geom_boxplot() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
@@ -398,6 +394,132 @@ ggplot(NHL.regression2, aes(x=dzFOL, y=Salary)) +
     geom_smooth(method = "lm", color = "red", se = FALSE) +
     theme_classic()
 ```
+```{r}
+
+#THIS CODE CHUNK IS BROKEN !!!!
+#### WE ALSO NEED TO DECIDE WHICH ONES ARE LINEAR AND WHICH ONES WE WANT TO ADD SPLINES TO ####
+
+set.seed(123)
+# Model Spec
+lm_spec <-
+  linear_reg() %>%
+  set_engine(engine = 'lm') %>%
+  set_mode('regression')
+
+# Original Recipe
+lm_rec <- recipe(Salary ~ Ht + Wt + DftRd + G + A1 + DftYr + dzFOL + Country + GP + SA, data = NHL.regression2) %>%
+  step_ns(Terminal, deg_free = 3) %>%
+  step_ns(Expend, deg_free = 3)
+
+splines_wf <- workflow() %>% 
+  add_recipe(lm_rec) %>%
+  add_model(lm_spec)
+
+
+# CV to Evaluate
+cv_output <- fit_resamples(
+  splines_wf, # workflow
+  resamples = NHL.cv6, # cv folds
+  metrics = metric_set(mae)
+)
+
+cv_output %>% 
+  collect_metrics()
+
+# Fit with all data
+ns_mod <- fit(
+  splines_wf, #workflow
+  data = NHL.regression2
+)
+
+```
+```{r}
+
+#### THIS CODE WON'T WORK UNTIL WE GET THE CODE ABOVE TO WORK ###
+#### WE ALSO NEED TO EDIT THIS CODE TO VISUALIZE THE VARIABLES AGAINST THE PREDICTORS FOR ONLY THE VARIABLES WE DECIDE TO IMPLEMENT A SPLINE ON ####
+
+spline_mod_output <- ns_mod %>%
+    predict(new_data = NHL.regression2) %>% #generates a column of predictions 
+    bind_cols(NHL.regression2) %>% #takes what you are inputting and binds it to something else
+    mutate(resid = Salary - .pred)
+
+head(spline_mod_output)
+
+ggplot(spline_mod_output, aes(x = .pred, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+
+# Residuals vs. predictors (x's)
+ggplot(spline_mod_output, aes(x = Ht, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = Wt, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = DftRd, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = G, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = A1, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = DftYr, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = dzFOL, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = Country, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = GP, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = SA, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+```
+
+```{r}
+tune_output %>% collect_metrics() %>% filter(penalty == (best_penalty %>% pull(penalty)))
+
+cv_output %>% collect_metrics()
+```
+
 
 
 Compare insights from variable importance analyses here and the corresponding results from Homework 1.
