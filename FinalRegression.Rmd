@@ -1,12 +1,12 @@
 ---
 title: "Regression"
-author: "Claire, Hilary, Sarah, Phebe"
+author: "Claire McHenry, Hilary Kaufman, Sarah Tannert-Lerner, Phebe Chen"
 date: "2/15/2022"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE)
 ```
 
 #Load in packages 
@@ -86,7 +86,6 @@ full_model %>% tidy()
 
 #Calculate and collect CV metrics
 ```{r}
-#THIS CODE IS NOT WORKING???
 mod1.cv <- fit_resamples(lm.workflow,
   resamples = NHL.cv6, 
   metrics = metric_set(mae,rsq,rmse)
@@ -297,7 +296,7 @@ collect_metrics(summarize=TRUE)
 
 mod1.cv
 
-model2.cv<-fit_resamples(lm2.workflow, #model refits to different cross validation folds
+model2.cv<-fit_resamples(lm.workflow, #model refits to different cross validation folds
     resamples=NHL.cv6,metrics = metric_set(mae,rsq,rmse))
 model2.cv %>% collect_metrics(summarize=TRUE) #shows rsq, mse, rmse values.
 ```
@@ -315,5 +314,30 @@ Are there any harms that may come from your analyses and/or how the data were co
 > Additionally, this data is from the 2016 to 2017 season. As the economy changes, inflation occurs, and the interest in the NHL fluctuates, this will influence the salary of players. We want to keep in mind that when we communicate this data, we make it clear the time period this data reflects and make it known that it may not be completely applicable to previous or future NHL season. 
 
 
+## Homework 2
+
+#Updated for using natural splines
+```{r}
+# Use natural splines for some of the quantitative predictors to account for non-linearity (GAMs)
+# Use OLS engine
+# Update recipe to include step_ns() for each quantitative predictor you want to allow to be non-linear
+# Determine number of knots (deg_free) and fit a smoothing spline and use edf to inform your choice
+```
 
 
+Compare insights from variable importance analyses here and the corresponding results from Homework 1.
+Now after having accounted for nonlinearity, have the most relevant predictors changed?
+>
+
+Do you gain any insights from the GAM output plots (easily obtained from fitting smoothing splines) for each predictor?
+>
+
+Compare model performance between your GAM models to the model that assume linearity. 
+How does test performance of the GAMs compare to other models you explored?
+>
+
+Decide on an overall best model based on your investigations so far. To do this, make clear your analysis goals. Predictive accuracy? Interpretability? A combination of both?
+>
+
+Are there any harms that may come from your analyses and/or how the data were collected? What cautions do you want to keep in mind when communicating your work?
+>
