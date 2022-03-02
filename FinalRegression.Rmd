@@ -408,8 +408,16 @@ lm_spec <-
 
 # Original Recipe
 lm_rec <- recipe(Salary ~ Ht + Wt + DftRd + G + A1 + DftYr + dzFOL + Country + GP + SA, data = NHL.regression2) %>%
-  step_ns(Terminal, deg_free = 3) %>%
-  step_ns(Expend, deg_free = 3)
+  step_ns(Ht, deg_free = 3) %>%
+  step_ns(Wt, deg_free = 3) %>%
+  step_ns(DftRd, deg_free = 3) %>%
+  step_ns(G, deg_free = 3) %>%
+  step_ns(A1, deg_free = 3) %>%
+  step_ns(DftYr, deg_free = 3) %>%
+  step_ns(dzFOL, deg_free = 3) %>%
+  step_ns(Country, deg_free = 3) %>%
+  step_ns(GP, deg_free = 3) %>%
+  step_ns(SA, deg_free = 3)   
 
 splines_wf <- workflow() %>% 
   add_recipe(lm_rec) %>%
