@@ -389,10 +389,6 @@ ggplot(NHL.regression2, aes(x=dzFOL, y=Salary)) +
     theme_classic()
 ```
 ```{r}
-
-#THIS CODE CHUNK IS BROKEN !!!!
-#### WE ALSO NEED TO DECIDE WHICH ONES ARE LINEAR AND WHICH ONES WE WANT TO ADD SPLINES TO ####
-
 set.seed(123)
 # Model Spec
 lm_spec <-
@@ -405,7 +401,7 @@ NHL <- drop_na(NHL.regression2)
 # Original Recipe
 lm_rec <- recipe(Salary ~ Ht + Wt + DftRd + G + A1 + DftYr + dzFOL + GP + SA, data = NHL) %>%
   step_naomit(all_numeric()) %>%
-  step_ns(Ht, deg_free = 3) %>%
+#  step_ns(Ht, deg_free = 3) %>%
   step_ns(Wt, deg_free = 3) %>%
   step_ns(DftRd, deg_free = 3) %>%
   step_ns(G, deg_free = 3) %>%
