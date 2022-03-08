@@ -369,12 +369,6 @@ ggplot(NHL.regression2, aes(x=dzFOL, y=Salary)) +
     geom_smooth(method = "lm", color = "red", se = FALSE) +
     theme_classic()
  
- ggplot(NHL.regression2, aes(x=Country, y=Salary)) +
-    geom_point() +
-    geom_smooth(color = "blue", se = FALSE) +
-    geom_smooth(method = "lm", color = "red", se = FALSE) +
-    theme_classic()
- 
  ggplot(NHL.regression2, aes(x=GP, y=Salary)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
@@ -406,9 +400,11 @@ lm_spec <-
   set_engine(engine = 'lm') %>%
   set_mode('regression')
 
+NHL <- drop_na(NHL.regression2)
+
 # Original Recipe
-lm_rec <- recipe(Salary ~ Ht + Wt + DftRd + G + A1 + DftYr + dzFOL + Country + GP + SA, data = NHL.regression2) %>%
-  step_naomit(all_numeric(), step = FALSE) %>%
+lm_rec <- recipe(Salary ~ Ht + Wt + DftRd + G + A1 + DftYr + dzFOL + GP + SA, data = NHL) %>%
+  step_naomit(all_numeric()) %>%
   step_ns(Ht, deg_free = 3) %>%
   step_ns(Wt, deg_free = 3) %>%
   step_ns(DftRd, deg_free = 3) %>%
@@ -416,14 +412,14 @@ lm_rec <- recipe(Salary ~ Ht + Wt + DftRd + G + A1 + DftYr + dzFOL + Country + G
   step_ns(A1, deg_free = 3) %>%
   step_ns(DftYr, deg_free = 3) %>%
   step_ns(dzFOL, deg_free = 3) %>%
-  step_ns(Country, deg_free = 3) %>%
+  # step_ns(Country, deg_free = 3) %>%
   step_ns(GP, deg_free = 3) %>%
-  step_ns(SA, deg_free = 3)   
+  step_ns(SA, deg_free = 3)
 
 splines_wf <- workflow() %>% 
   add_recipe(lm_rec) %>%
   add_model(lm_spec)
-
+NHL.cv6 <- vfold_cv(NHL, v=6)
 
 # CV to Evaluate
 cv_output <- fit_resamples(
@@ -432,7 +428,9 @@ cv_output <- fit_resamples(
   metrics = metric_set(mae)
 )
 
-View((cv_output)) %>% 
+# cv_output[[4]][[1]]$.notes
+
+cv_output %>% 
   collect_metrics()
 
 # Fit with all data
@@ -440,7 +438,7 @@ ns_mod <- fit(
   splines_wf, #workflow
   data = NHL.regression2
 )
-s
+
 ```
 ```{r}
 
@@ -499,12 +497,6 @@ ggplot(spline_mod_output, aes(x = DftYr, y = resid)) +
     theme_classic()
 
 ggplot(spline_mod_output, aes(x = dzFOL, y = resid)) +
-    geom_point() +
-    geom_smooth() +
-    geom_hline(yintercept = 0, color = "red") +
-    theme_classic()
-
-ggplot(spline_mod_output, aes(x = Country, y = resid)) +
     geom_point() +
     geom_smooth() +
     geom_hline(yintercept = 0, color = "red") +
