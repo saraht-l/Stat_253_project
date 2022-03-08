@@ -400,7 +400,7 @@ NHL <- drop_na(NHL.regression2)
 
 # Original Recipe
 lm_rec <- recipe(Salary ~ Ht + Wt + DftRd + G + A1 + DftYr + dzFOL + GP + SA, data = NHL) %>%
-  step_naomit(all_numeric()) %>%
+  step_naomit(all_numeric(), skip = TRUE) %>%
 #  step_ns(Ht, deg_free = 3) %>%
   step_ns(Wt, deg_free = 3) %>%
   step_ns(DftRd, deg_free = 3) %>%
@@ -432,15 +432,16 @@ cv_output %>%
 # Fit with all data
 ns_mod <- fit(
   splines_wf, #workflow
-  data = NHL.regression2
+  data = NHL
 )
 
 ```
+
 ```{r}
 
-spline_mod_output <- ns_mod %>%
-    predict(new_data = NHL) %>% #generates a column of predictions 
-    bind_cols(NHL) %>% #takes what you are inputting and binds it to something else
+spline_mod_output <- NHL %>%
+    bind_cols(predict(ns_mod, new_data = NHL)) %>% #generates a column of predictions 
+    # bind_cols(NHL) %>% #takes what you are inputting and binds it to something else
     mutate(resid = Salary - .pred)
 
 head(spline_mod_output)
@@ -512,6 +513,13 @@ ggplot(spline_mod_output, aes(x = SA, y = resid)) +
 tune_output %>% collect_metrics() %>% filter(penalty == (best_penalty %>% pull(penalty)))
 
 cv_output %>% collect_metrics()
+```
+```{r}
+# make a plot of predicted vs actual for the salary 
+
+NHL %>%
+  ggplot()+
+  geom_point(aes(x=)
 ```
 
 
