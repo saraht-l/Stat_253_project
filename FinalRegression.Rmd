@@ -517,9 +517,10 @@ cv_output %>% collect_metrics()
 ```{r}
 # make a plot of predicted vs actual for the salary 
 
-NHL %>%
+spline_mod_output %>%
   ggplot()+
-  geom_point(aes(x=)
+  geom_point(aes(x=Salary, y=.pred))+
+  theme_minimal()
 ```
 
 
