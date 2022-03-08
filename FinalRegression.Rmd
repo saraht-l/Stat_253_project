@@ -408,6 +408,7 @@ lm_spec <-
 
 # Original Recipe
 lm_rec <- recipe(Salary ~ Ht + Wt + DftRd + G + A1 + DftYr + dzFOL + Country + GP + SA, data = NHL.regression2) %>%
+  step_naomit(all_numeric(), step = FALSE) %>%
   step_ns(Ht, deg_free = 3) %>%
   step_ns(Wt, deg_free = 3) %>%
   step_ns(DftRd, deg_free = 3) %>%
@@ -431,7 +432,7 @@ cv_output <- fit_resamples(
   metrics = metric_set(mae)
 )
 
-cv_output %>% 
+View((cv_output)) %>% 
   collect_metrics()
 
 # Fit with all data
@@ -439,7 +440,7 @@ ns_mod <- fit(
   splines_wf, #workflow
   data = NHL.regression2
 )
-
+s
 ```
 ```{r}
 
@@ -532,7 +533,7 @@ cv_output %>% collect_metrics()
 
 Compare insights from variable importance analyses here and the corresponding results from Homework 1.
 Now after having accounted for nonlinearity, have the most relevant predictors changed?
->
+> 
 
 Do you gain any insights from the GAM output plots (easily obtained from fitting smoothing splines) for each predictor?
 >
