@@ -543,7 +543,121 @@ Decide on an overall best model based on your investigations so far. To do this,
 Are there any harms that may come from your analyses and/or how the data were collected? What cautions do you want to keep in mind when communicating your work?
 > We hope to change the draft round and edit the data set a little bit. SOMETHING ABOUT THE DRAFT YEAR???? FILL THIS PART IN???
 
+
+
+## LOGISTIC REGRESSION 
+
 ```{r}
 summary(NHL$Hand)
 ```
+```{r}
+NHL <- NHL %>%
+  mutate(success = as.factor(ifelse(NHL$Salary>2500000,1,0)))
+
+```
+
+```{r}
+# Make sure you set reference level (to the outcome you are NOT interested in)
+NHL <- NHL %>%
+  mutate(NHL = relevel(factor(success), ref='0')) #set reference level
+
+# Logistic Regression Model Spec
+logistic_spec <- logistic_reg() %>%
+    set_engine('glm') %>%
+    set_mode('classification')
+
+# Recipe
+logistic_rec <- recipe(success ~ Hand + rookie + Position + SA + A1 + G, data = NHL)
+
+# Workflow (Recipe + Model)
+log_wf <- workflow() %>% 
+    add_recipe(logistic_rec) %>%
+    add_model(logistic_spec) 
+
+# Fit Model
+log_fit <- fit(log_wf, data = NHL)
+```
+
+```{r}
+tidy(log_fit)
+```
+
+```{r}
+# Print out Coefficients
+log_fit %>% tidy()
+
+# Get Exponentiated coefficients + CI
+log_fit %>% tidy() %>%
+  mutate(OR.conf.low = exp(estimate - 1.96*std.error), OR.conf.high = exp(estimate + 1.96*std.error)) %>% # do this first
+  mutate(OR = exp(estimate))
+```
+```{r}
+predict(log_fit, new_data = data.frame(Hand = 'L', rookie = 1, Position= 'D', SA = 100, A1 = 10, G = 20), type = 'prob')
+predict(log_fit, new_data = data.frame(Hand = 'L', rookie = 0, Position= 'D', SA = 100, A1 = 10, G = 20), type = 'class')
+```
+```{r}
+# Soft predictions
+logistic_output <-  NHL %>%
+  bind_cols(predict(log_fit, new_data = NHL, type = 'prob')) 
+
+head(logistic_output)
+
+#logistic_output$pred1 <- logistic_output$.pred_1
+#logistic_output$pred0 <- logistic_output$.pred_0
+  
+logistic_output %>%
+  ggplot()+
+  geom_boxplot(aes(x=success, y= .pred_1))+
+  theme_minimal()+
+  geom_hline(yintercept = 0.4, color = 'red', linetype = 2)
+```
+```{r}
+# Hard predictions (you pick threshold)
+logistic_output <- logistic_output %>%
+  mutate(.pred_1 = make_two_class_pred(`.pred_0`, levels(success), threshold = 0.4)) 
+
+# Confusion Matrix
+logistic_output %>%
+  conf_mat(truth = success, estimate = .pred_1)
+
+log_metrics <- metric_set(sens, yardstick::spec, accuracy)
+logistic_output %>% 
+  log_metrics(estimate = .pred_1, truth = success, event_level = "second")
+```
+
+```{r}
+#logistic_output$success = as.numeric(logistic_output$success)
+#logistic_output$.pred_1 = as.numeric(logistic_output$.pred_1)
+logistic_output$preds <- as.numeric(as.factor(logistic_output$.pred_1))
+
+logistic_roc <- logistic_output %>% 
+    roc_curve(success, preds, event_level = "second") 
+
+autoplot(logistic_roc) + theme_classic()
+
+logistic_output %>% 
+  roc_auc(success, preds, event_level = "second")
+```
+```{r}
+set.seed(123)
+data_cv10 <- vfold_cv(NHL, v = 6)
+
+# CV Fit Model
+log_cv_fit <- fit_resamples(
+    log_wf, 
+    resamples = data_cv10,
+    metrics = metric_set(sens, yardstick::spec, accuracy, roc_auc),
+    control = control_resamples(save_pred = TRUE, event_level = 'second'))  # you need predictions for ROC calculations
+
+collect_metrics(log_cv_fit) #default threshold is 0.5
+```
+
+
+
+
+
+
+
+
+
 
