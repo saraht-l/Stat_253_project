@@ -45,9 +45,8 @@ NHL.regression <- NHL.train %>%
 #Transform the data so that it's as.numeric for Country 
 #ideally make the birth year one whole variable instead of a bunch of yes or no (born variables)
 NHL.regression2 <- NHL.regression %>%  
-  transform(Cntry,Country=as.numeric(factor(Cntry))) %>% 
-  select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Country, GP, Position, SA)
-
+  transform(Cntry,Country=as.numeric(factor(Cntry))) %>% mutate(rookie=ifelse(NHL.regression$DftYr>2013,1,0))%>%
+  select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Country, GP, Position, SA,rookie)
 ```
 
 #Creation of CV folds 
@@ -543,3 +542,8 @@ Decide on an overall best model based on your investigations so far. To do this,
 
 Are there any harms that may come from your analyses and/or how the data were collected? What cautions do you want to keep in mind when communicating your work?
 > We hope to change the draft round and edit the data set a little bit. SOMETHING ABOUT THE DRAFT YEAR???? FILL THIS PART IN???
+
+```{r}
+summary(NHL$Hand)
+```
+
