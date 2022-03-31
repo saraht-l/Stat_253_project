@@ -46,8 +46,9 @@ NHL.regression <- NHL.train %>%
 #Transform the data so that it's as.numeric for Country 
 #ideally make the birth year one whole variable instead of a bunch of yes or no (born variables)
 NHL.regression2 <- NHL.regression %>%  
-  transform(Cntry,Country=as.numeric(factor(Cntry))) %>% mutate(rookie=ifelse(NHL.regression$DftYr>2013,1,0))%>%
+  transform(Cntry,Country=as.numeric(factor(Cntry))) %>% mutate(rookie=as.factor(ifelse(NHL.regression$DftYr>2013,1,0)))%>%
   select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Country, GP, Position, SA,rookie)
+NHL.regression2 <- drop_na(NHL.regression2)
 ```
 
 #Creation of CV folds 
@@ -245,7 +246,11 @@ ggplot(LASSO_mod_output, aes(x = Country, y = resid)) +
     geom_hline(yintercept = 0, color = "red") +
     theme_classic()
  
-
+ ggplot(LASSO_mod_output, aes(x = rookie, y = resid)) +
+    geom_boxplot() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
 ```
 
 Which variables are most important predictors of your quantitative outcome? Justify your answer. Do the methods you've applied reach consensus on which variables are most important? What insights are expected? Surprising? NOTE: if some (but not all) of the indicator terms for a categorical predictor are selected in the final models, the whole predictor should be treated as selected. 
@@ -310,7 +315,7 @@ Are there any harms that may come from your analyses and/or how the data were co
 > Additionally, this data is from the 2016 to 2017 season. As the economy changes, inflation occurs, and the interest in the NHL fluctuates, this will influence the salary of players. We want to keep in mind that when we communicate this data, we make it clear the time period this data reflects and make it known that it may not be completely applicable to previous or future NHL season. 
 
 
-## Homework 2
+== Homework 2 ==
 
 #Updated for using natural splines
 ```{r}
@@ -399,7 +404,7 @@ lm_spec <-
 NHL <- drop_na(NHL.regression2)
 
 # Original Recipe
-lm_rec <- recipe(Salary ~ Ht + Wt + DftRd + G + A1 + DftYr + dzFOL + GP + SA, data = NHL) %>%
+lm_rec <- recipe(Salary ~ Ht + Wt + DftRd + G + A1 + DftYr + dzFOL + GP + SA+ rookie, data = NHL) %>%
   step_naomit(all_numeric(), skip = TRUE) %>%
 #  step_ns(Ht, deg_free = 3) %>%
   step_ns(Wt, deg_free = 3) %>%
@@ -653,53 +658,98 @@ log_cv_fit <- fit_resamples(
 collect_metrics(log_cv_fit) #default threshold is 0.5
 ```
 
+#Random Forest 
+
+##  Random Forest
+
+### Model Specification
 
 
 ```{r}
+rf_spec <- rand_forest() %>%
+  set_engine(engine = 'ranger') %>% 
+  set_args(mtry = NULL, # size of random subset of variables; default is floor(sqrt(ncol(x)))
+           trees = 50, # Number of bags
+           min_n = 2,
+           probability = FALSE, # want hard predictions first
+           importance = 'impurity') %>% 
+  set_mode('classification') # change this for regression tree
 
-  
-set.seed(123) # don't change this
-
-data_fold <- vfold_cv(NHL, v = 6)
-
-ct_spec_tune <- decision_tree() %>%
-  set_engine(engine = 'rpart') %>%
-  set_args(cost_complexity = tune(),  
-           min_n = 2, 
-           tree_depth = NULL) %>% 
-  set_mode('classification') 
-
-data_rec <- recipe(success ~ Ht + Wt + Hand + DftRd + G + A1 + Country + GP + Position + SA + rookie, data = NHL)
-
-data_wf_tune <- workflow() %>%
-  add_model(ct_spec_tune) %>%
-  add_recipe(data_rec)
-
-param_grid <- grid_regular(cost_complexity(range = c(-5, 1)), levels = 10) 
+rf_spec
 
 
-
-tune_res <- tune_grid(
-  data_wf_tune, 
-  resamples = data_fold, 
-  grid = param_grid, 
-  metrics = metric_set(accuracy) #change this for regression trees
-)
-
-
-best_complexity <- select_by_one_std_err(tune_res, metric = 'accuracy', desc(cost_complexity))
-data_wf_final <- finalize_workflow(data_wf_tune, best_complexity)
-
-Success_final_fit <- fit(data_wf_final, data = NHL)
-
-
-tune_res %>% 
-  collect_metrics() %>%
-  filter(cost_complexity == best_complexity %>% pull(cost_complexity))
-autoplot(tune_res) + theme_classic()
-
-Success_final_fit %>% extract_fit_engine() %>% rpart.plot()
+heart_rf_wf <- workflow() %>%
+  add_model(rf_spec) %>%
+  add_recipe(logistic_rec)
 ```
+
+
+
+### Fit Models
+
+```{r}
+set.seed(123)
+heart_rf_fit <- heart_rf_wf %>%
+  fit(data = NHL)
+
+heart_rf_fit # check out OOB prediction error (accuracy = 1 - OOB prediction error)
+```
+
+
+### Evaluate Models
+
+To  calculate OOB metrics, we need to get the OOB predictions from the fit model.
+
+```{r}
+heart_rf_OOB_output <- tibble(
+  .pred_class = heart_rf_fit %>% extract_fit_engine() %>% pluck('predictions'),
+  success = NHL %>% pull(success))
+
+bag_metrics <- metric_set(sens, yardstick::spec, accuracy)
+
+heart_rf_OOB_output %>% 
+  bag_metrics(truth = success, estimate = .pred_class)
+```
+
+To estimate AUC of ROC curve using OOB predictions, we'll need to refit the model to get the predicted probabilities. 
+
+```{r}
+set.seed(123) #to get the same bootstrap samples, use same seed
+heart_rf_fit2 <- heart_rf_wf %>%
+  update_model(rf_spec %>% set_args(probability = TRUE)) %>%
+  fit(data = NHL)
+
+heart_rf_fit2
+```
+
+```{r}
+heart_rf_OOB_output2 <- bind_cols(
+  heart_rf_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
+  NHL %>% select(success))
+
+heart_rf_OOB_output2 %>% 
+  roc_curve(success, 1, event_level = "second") %>% autoplot()
+
+heart_rf_OOB_output2 %>% 
+  roc_auc(success, 1, event_level = "second") #Area under Curve
+```
+
+### Variable Importance
+
+
+```{r}
+library(vip) #install.packages('vip')
+
+heart_rf_fit %>% extract_fit_engine() %>% vip() #based on impurity
+
+heart_rf_wf %>% #based on permutation
+  update_model(rf_spec %>% set_args(importance = "permutation")) %>%
+  fit(data = NHL) %>% extract_fit_engine() %>% vip()
+```
+
+
+
+
 
 
 
