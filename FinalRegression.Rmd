@@ -651,8 +651,20 @@ log_cv_fit <- fit_resamples(
 
 collect_metrics(log_cv_fit) #default threshold is 0.5
 ```
+1. Summarize your final model and justify your model choice (see below for ways to justify your choice).
+> 
+
+2. Compare the different classification models tried in light of evaluation metrics, variable importance, and data context.
+>
+
+3. Display evaluation metrics for different models in a clean, organized way. This display should include both the estimated metric as well as its standard deviation. (This won’t be available from OOB error estimation. If using OOB, don’t worry about reporting the SD.)
+> 
+
+4. Broadly summarize conclusions from looking at these evaluation metrics and their measures of uncertainty.
+>
 
 
+# - end of logisitic regression - #
 
 
 
