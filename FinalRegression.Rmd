@@ -17,6 +17,7 @@ library(broom)
 library(ggplot2)
 library(tidymodels) 
 tidymodels_prefer()
+library(rpart.plot)
 ```
 
 
@@ -614,7 +615,7 @@ logistic_output %>%
 ```{r}
 # Hard predictions (you pick threshold)
 logistic_output <- logistic_output %>%
-  mutate(.pred_1 = make_two_class_pred(`.pred_0`, levels(success), threshold = 0.4)) 
+  mutate(.pred_1 = probably::make_two_class_pred(.pred_0, levels(success), threshold = 0.4)) 
 
 # Confusion Matrix
 logistic_output %>%
@@ -666,7 +667,51 @@ collect_metrics(log_cv_fit) #default threshold is 0.5
 
 # - end of logisitic regression - #
 
+```{r}
 
+  
+set.seed(123) # don't change this
+
+data_fold <- vfold_cv(NHL, v = 6)
+
+ct_spec_tune <- decision_tree() %>%
+  set_engine(engine = 'rpart') %>%
+  set_args(cost_complexity = tune(),  
+           min_n = 2, 
+           tree_depth = NULL) %>% 
+  set_mode('classification') 
+
+data_rec <- recipe(success ~ Ht + Wt + Hand + DftRd + G + A1 + Country + GP + Position + SA + rookie, data = NHL)
+
+data_wf_tune <- workflow() %>%
+  add_model(ct_spec_tune) %>%
+  add_recipe(data_rec)
+
+param_grid <- grid_regular(cost_complexity(range = c(-5, 1)), levels = 10) 
+
+
+
+tune_res <- tune_grid(
+  data_wf_tune, 
+  resamples = data_fold, 
+  grid = param_grid, 
+  metrics = metric_set(accuracy) #change this for regression trees
+)
+
+
+best_complexity <- select_by_one_std_err(tune_res, metric = 'accuracy', desc(cost_complexity))
+data_wf_final <- finalize_workflow(data_wf_tune, best_complexity)
+
+Success_final_fit <- fit(data_wf_final, data = NHL)
+
+
+tune_res %>% 
+  collect_metrics() %>%
+  filter(cost_complexity == best_complexity %>% pull(cost_complexity))
+autoplot(tune_res) + theme_classic()
+
+Success_final_fit %>% extract_fit_engine() %>% rpart.plot()
+```
 
 
 
