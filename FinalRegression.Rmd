@@ -766,6 +766,10 @@ heart_rf_wf %>% #based on permutation
   fit(data = NHL) %>% extract_fit_engine() %>% vip()
 ```
 
+```{r}
+heart_rf_OOB_output2(data_fit_mtry12,12, land %>% pull(class)) %>%
+    conf_mat(truth = class, estimate= .pred_class)
+```
 
 
 
