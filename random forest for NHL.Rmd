@@ -1,6 +1,8 @@
 ---
 title: "Bagging and Random Forest"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
@@ -38,8 +40,97 @@ NHL <- NHL %>%
   mutate(success = as.factor(ifelse(NHL$Salary>2500000,1,0)))%>%
   select(-Salary)
 ```
+##Logistic Regression 
+```{r}
+# Make sure you set reference level (to the outcome you are NOT interested in)
+NHL <- NHL %>%
+  mutate(NHL = relevel(factor(success), ref='0'))%>% #set reference level
+  select(-dzFOL)
+# Logistic Regression Model Spec
+logistic_spec <- logistic_reg() %>%
+    set_engine('glm') %>%
+    set_mode('classification')
 
+# Recipe
+logistic_rec <- recipe(success ~ Hand + rookie + Position + SA + A1 + G, data = NHL)
+
+# Workflow (Recipe + Model)
+log_wf <- workflow() %>% 
+    add_recipe(logistic_rec) %>%
+    add_model(logistic_spec) 
+
+# Fit Model
+log_fit <- fit(log_wf, data = NHL)
+```
+
+```{r}
+tidy(log_fit)
+```
+
+```{r}
+# Print out Coefficients
+log_fit %>% tidy()
+
+# Get Exponentiated coefficients + CI
+log_fit %>% tidy() %>%
+  mutate(OR.conf.low = exp(estimate - 1.96*std.error), OR.conf.high = exp(estimate + 1.96*std.error)) %>% # do this first
+  mutate(OR = exp(estimate))
+```
+```{r}
+predict(log_fit, new_data = data.frame(Hand = 'L', rookie = 1, Position= 'D', SA = 100, A1 = 10, G = 20), type = 'prob')
+predict(log_fit, new_data = data.frame(Hand = 'L', rookie = 0, Position= 'D', SA = 100, A1 = 10, G = 20), type = 'class')
+```
+```{r}
+# Soft predictions
+logistic_output <-  NHL %>%
+  bind_cols(predict(log_fit, new_data = NHL, type = 'prob')) 
+
+head(logistic_output)
+
+#logistic_output$pred1 <- logistic_output$.pred_1
+#logistic_output$pred0 <- logistic_output$.pred_0
+  
+logistic_output %>%
+  ggplot()+
+  geom_boxplot(aes(x=success, y= .pred_1))+
+  theme_minimal()+
+  geom_hline(yintercept = 0.4, color = 'red', linetype = 2)
+```
+```{r}
+# Hard predictions (you pick threshold)
+logistic_output <- logistic_output %>%
+  mutate(.pred_1 = probably::make_two_class_pred(.pred_0, levels(success), threshold = 0.4)) 
+
+# Confusion Matrix
+logistic_output %>%
+  conf_mat(truth = success, estimate = .pred_1)
+
+log_metrics <- metric_set(sens, yardstick::spec, accuracy)
+logistic_output %>% 
+  log_metrics(estimate = .pred_1, truth = success, event_level = "second")
+```
+
+```{r}
+#logistic_output$success = as.numeric(logistic_output$success)
+#logistic_output$.pred_1 = as.numeric(logistic_output$.pred_1)
+logistic_output$preds <- as.numeric(as.factor(logistic_output$.pred_1))
+
+logistic_roc <- logistic_output %>% 
+    roc_curve(success, preds, event_level = "second") 
+
+autoplot(logistic_roc) + theme_classic()
+
+logistic_output %>% 
+  roc_auc(success, preds, event_level = "second")
+```
+
+#Random Forest
 # starting to set up the random forest 
+```{r}
+NHL <- NHL%>%
+  select(-NHL)
+```
+
 ```{r}
 rf_spec <- rand_forest() %>%
   set_engine(engine = 'ranger') %>% 
@@ -141,5 +232,64 @@ data_wf_mtry7 %>%
     extract_fit_engine() %>% 
     vip(num_features = 13) + theme_classic()
 ```
+# trying to make the Roc auc curve 
+```{r}
+NHL_rf_OOB_output <- tibble(
+  .pred_class =data_fit_mtry7 %>% extract_fit_engine() %>% pluck('predictions'),
+  success = NHL %>% pull(success))
+
+bag_metrics <- metric_set(sens, yardstick::spec, accuracy)
+
+NHL_rf_OOB_output %>% 
+  bag_metrics(truth = success, estimate = .pred_class)
+```
+```{r}
+set.seed(123) #to get the same bootstrap samples, use same seed
+NHL_rf_fit2 <- data_wf_mtry7 %>%
+  update_model(rf_spec %>% set_args(probability = TRUE)) %>%
+  fit(data = NHL)
+
+```
+
+```{r}
+NHL_rf_OOB_output2 <- bind_cols(
+  NHL_rf_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
+  NHL %>% select(success))
+
+NHL_rf_OOB_output2 %>% 
+  roc_curve(success, 1, event_level = "first") %>% autoplot()
+
+NHL_rf_OOB_output2 %>% 
+  roc_auc(success, 1, event_level = "first")
+```
+
+1. Summarize your final model and justify your model choice (see below for ways to justify your choice).
+
+> Our random forest has more accuracy than our logistic model. 
+
+2. Compare the different classification models tried in light of evaluation metrics, variable importance, and data context.
+
+> The logistic regression offers us a number of different ways to evaluate our model for accuracy and usefulness. The logistic model's confusion matrix is really helpful in terms of helping us see when our model is accurately predicting outcomes versus when there are higher rate of false positives or false negatives. Our logistic regression metrics (accuracy, ROC_auc, sensistivity, and specificity) show us a lot about our logistic model. The sensitivity of our logistic regression is approximately 0.68 (68%) demonstrating that the model predicts true Success  68% of the time. The specificity demosnstrates that our model predicts true Failure values around 87% of the time and our model's overall accuracy of predictions is around 80%.  
+
+>Our random forest model predicts true success around 91% of the time, predicts true failure around 77% of the time and has an accuracy of about 84%. For our logistic regression models, the most important variables are SA, A1 and G, while in the random forest the most important variables are dftyr, SA and A1. 
+
+>Our decision tree model outcomes reflect how successful prediction is the likeliest outcome of the data set when using our chosen variables and metrics given that the final node to the far right is the highest percentage of outcomes. If SA is greater than 488, conditions of success will be met and the prediction will be one of success to our investigation question. 
 
 
+3. Display evaluation metrics for different models in a clean, organized way. This display should include both the estimated metric as well as its standard deviation. (This won’t be available from OOB error estimation. If using OOB, don’t worry about reporting the SD.)
+
+> Logistic Regression: 
+>Sens:.64
+>Spec:.913
+>Acc:.814
+>ROC AUC:.777
+>Random Forest:
+>Sens:.88
+>Spec:.775
+>Acc:.843
+>ROC AUC:.919
+
+4. Broadly summarize conclusions from looking at these evaluation metrics and their measures of uncertainty.
+
+> Using our evaluation metrics such as the sensitivity and specificity measure of the logistic outcome, we see that our logistic model is a useful one to investigating our research questions and data and our decision tree also provide helpful information when evaluating the salaries of NHL players. 
+>We also see that our random forest is the best at predicting monetary success for our players. Both of our models struggle more categorizing successul players.Both of our models are not the most accurate, as our prediction rates are in the 80% accuracy ranges. 
