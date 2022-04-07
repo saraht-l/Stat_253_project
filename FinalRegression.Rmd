@@ -652,6 +652,7 @@ log_cv_fit <- fit_resamples(
 
 collect_metrics(log_cv_fit) #default threshold is 0.5
 ```
+
 1. Summarize your final model and justify your model choice (see below for ways to justify your choice).
 > 
 
