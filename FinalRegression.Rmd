@@ -558,15 +558,16 @@ summary(NHL$Hand)
 ```
 ```{r}
 NHL <- NHL %>%
-  mutate(success = as.factor(ifelse(NHL$Salary>2500000,1,0)))
+  mutate(success = as.factor(ifelse(NHL$Salary>2500000,1,0)))%>%
+  select(-Salary)
 
 ```
 
 ```{r}
 # Make sure you set reference level (to the outcome you are NOT interested in)
 NHL <- NHL %>%
-  mutate(NHL = relevel(factor(success), ref='0')) #set reference level
-
+  mutate(NHL = relevel(factor(success), ref='0'))%>% #set reference level
+  select(-dzFOL)
 # Logistic Regression Model Spec
 logistic_spec <- logistic_reg() %>%
     set_engine('glm') %>%
@@ -666,6 +667,8 @@ collect_metrics(log_cv_fit) #default threshold is 0.5
 
 
 ```{r}
+NHL<-NHL%>%
+  select(-NHL)
 rf_spec <- rand_forest() %>%
   set_engine(engine = 'ranger') %>% 
   set_args(mtry = NULL, # size of random subset of variables; default is floor(sqrt(ncol(x)))
@@ -676,11 +679,11 @@ rf_spec <- rand_forest() %>%
   set_mode('classification') # change this for regression tree
 
 rf_spec
-
+logistic_rec2 <- recipe(success ~ ., data = NHL)
 
 heart_rf_wf <- workflow() %>%
   add_model(rf_spec) %>%
-  add_recipe(logistic_rec)
+  add_recipe(logistic_rec2)
 ```
 
 
@@ -718,7 +721,7 @@ set.seed(123) #to get the same bootstrap samples, use same seed
 heart_rf_fit2 <- heart_rf_wf %>%
   update_model(rf_spec %>% set_args(probability = TRUE)) %>%
   fit(data = NHL)
-
+head(NHL)
 heart_rf_fit2
 ```
 
@@ -728,10 +731,10 @@ heart_rf_OOB_output2 <- bind_cols(
   NHL %>% select(success))
 
 heart_rf_OOB_output2 %>% 
-  roc_curve(success, 1, event_level = "second") %>% autoplot()
+  roc_curve(success, 1, event_level = "first") %>% autoplot()
 
 heart_rf_OOB_output2 %>% 
-  roc_auc(success, 1, event_level = "second") #Area under Curve
+  roc_auc(success, 1, event_level = "first") #Area under Curve
 ```
 
 ### Variable Importance
