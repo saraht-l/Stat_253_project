@@ -1,0 +1,145 @@
+---
+title: "Bagging and Random Forest"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(vip)
+library(tidymodels)
+tidymodels_prefer()
+```
+
+# data and data cleaning
+```{r}
+#Testing data
+NHL.test <- read.csv("test.csv")
+
+#Training data
+NHL.train <- read.csv("train.csv")
+NHL.regression <- NHL.train %>%
+  select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Cntry, GP,Position,SA)
+NHL.regression2 <- NHL.regression %>%  
+  transform(Cntry,Country=as.numeric(factor(Cntry))) %>% mutate(rookie=ifelse(NHL.regression$DftYr>2013,1,0))%>%
+  select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Country, GP, Position, SA,rookie)
+NHL.regression2 <- drop_na(NHL.regression2)
+```
+
+#more data cleaning 
+```{r}
+NHL <- drop_na(NHL.regression2)
+NHL <- NHL %>%
+  mutate(success = as.factor(ifelse(NHL$Salary>2500000,1,0)))%>%
+  select(-Salary)
+```
+
+# starting to set up the random forest 
+```{r}
+rf_spec <- rand_forest() %>%
+  set_engine(engine = 'ranger') %>% 
+  set_args(mtry = NULL, # size of random subset of variables; default is floor(sqrt(ncol(x)))
+           trees = 1000, # Number of trees
+           min_n = 2,
+           probability = FALSE, # FALSE: hard predictions
+           importance = 'impurity') %>% 
+  set_mode('classification')
+```
+# recipe 
+```{r}
+data_rec <- recipe(success ~ ., data = NHL)
+# workflows 
+data_wf_mtry2 <- workflow() %>%
+  add_model(rf_spec %>% set_args(mtry = 2)) %>%
+  add_recipe(data_rec)
+
+# Create workflows for mtry = 12 , 74, and 147
+data_wf_mtry4 <- workflow() %>%
+  add_model(rf_spec %>% set_args(mtry = 4)) %>%
+  add_recipe(data_rec)
+
+data_wf_mtry7 <- workflow() %>%
+  add_model(rf_spec %>% set_args(mtry = 7)) %>%
+  add_recipe(data_rec)
+
+data_wf_mtry13 <- workflow() %>%
+  add_model(rf_spec %>% set_args(mtry = 13)) %>%
+  add_recipe(data_rec)
+```
+# making the fit models, trying a different amount of variable splits 
+
+```{r}
+set.seed(123) # make sure to run this before each fit so that you have the same 1000 trees
+data_fit_mtry2 <- fit(data_wf_mtry2, data = NHL)
+
+set.seed(123)
+data_fit_mtry4 <- fit(data_wf_mtry4, data = NHL)
+
+set.seed(123) 
+data_fit_mtry7 <- fit(data_wf_mtry7, data = NHL)
+
+set.seed(123)
+data_fit_mtry13 <- fit(data_wf_mtry13, data = NHL)
+```
+
+```{r}
+rf_OOB_output <- function(fit_model, model_label, truth){
+    tibble(
+          .pred_class = fit_model %>% extract_fit_engine() %>% pluck('predictions'), #OOB predictions
+          class = truth,
+          model = model_label
+      )
+}
+```
+# checking the ideal amounts of splits for the trees
+```{r}
+data_rf_OOB_output <- bind_rows(
+    rf_OOB_output(data_fit_mtry2,'mtry2', NHL %>% pull(success)),
+    rf_OOB_output(data_fit_mtry4,'mtry4', NHL %>% pull(success)),
+    rf_OOB_output(data_fit_mtry7,'mtry7', NHL %>% pull(success)),
+    rf_OOB_output(data_fit_mtry13,'mtry13', NHL %>% pull(success))
+)
+
+
+data_rf_OOB_output %>% 
+    group_by(model) %>%
+    accuracy(truth = class, estimate = .pred_class)
+```
+```{r}
+data_rf_OOB_output %>% 
+    group_by(model) %>%
+    accuracy(truth = class, estimate = .pred_class) %>%
+  mutate(mtry = as.numeric(stringr::str_replace(model,'mtry',''))) %>%
+  ggplot(aes(x = mtry, y = .estimate )) + 
+  geom_point() +
+  geom_line() +
+  theme_classic()
+```
+# looks like 7 is the ideal number of splits 
+#now let us assess our model with 4 splits
+```{r}
+head(NHL$success)
+rf_OOB_output(data_fit_mtry7,'mtry7', NHL %>% pull(success)) %>%
+    conf_mat(truth = class, estimate= .pred_class)
+
+```
+```{r}
+data_fit_mtry7 %>% 
+    extract_fit_engine() %>% 
+    vip(num_features = 13) + theme_classic()
+```
+# for permutations
+```{r}
+data_wf_mtry7 %>% 
+  update_model(rf_spec %>% set_args(importance = "permutation")) %>% #based on permutation
+  fit(data = NHL) %>% 
+    extract_fit_engine() %>% 
+    vip(num_features = 13) + theme_classic()
+```
+
+
