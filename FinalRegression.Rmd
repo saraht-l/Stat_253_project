@@ -658,6 +658,13 @@ log_cv_fit <- fit_resamples(
 
 collect_metrics(log_cv_fit) #default threshold is 0.5
 ```
+1. Summarize your final model and justify your model choice (see below for ways to justify your choice).
+> 
+
+2. Compare the different classification models tried in light of evaluation metrics, variable importance, and data context.
+> The logistic regression offers us a number of different ways to evaluate our model for accuracy and usefulness. The logistic model's confusion matrix is really helpful in terms of helping us see when our model is accurately predicting outcomes versus when there are higher rate of false positives or false negatives. Our logistic regression metrics (accuracy, ROC_auc, sensistivity, and specifcity) show us a lot about our logistic model. The sensitivity of our logistic regression is approximately 0.68 (68%) demonstrating that the model predicts true Success  68% of the time. The specificity demosnstrates that our model predicts true Failure values around 87% of the time and our model's overall accuracy of predictions is around 80%.  
+
+Our decision tree model outcomes reflect how successful prediction is the likeliest outcome of the data set when using our chosen variables and metrics given that the final node to the far right is the highest percentage of outcomes. If SA is greater than 488, conditions of success will be met and the prediction will be one of success to our investigation question. 
 
 #Random Forest 
 
@@ -665,6 +672,14 @@ collect_metrics(log_cv_fit) #default threshold is 0.5
 
 ### Model Specification
 
+3. Display evaluation metrics for different models in a clean, organized way. This display should include both the estimated metric as well as its standard deviation. (This won’t be available from OOB error estimation. If using OOB, don’t worry about reporting the SD.)
+> 
+
+4. Broadly summarize conclusions from looking at these evaluation metrics and their measures of uncertainty.
+> Using our evaluation metrics such as the sensitivity and specificity measure of the logistic outcome, we see that our logistic model is a useful one to investigating our research questions and data and our decision tree also provide helpful information when evaluating the salaries of NHL players. 
+
+
+# - end of logisitic regression - #
 
 ```{r}
 NHL<-NHL%>%
