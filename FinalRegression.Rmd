@@ -46,7 +46,7 @@ NHL.regression <- NHL.train %>%
 #Transform the data so that it's as.numeric for Country 
 #ideally make the birth year one whole variable instead of a bunch of yes or no (born variables)
 NHL.regression2 <- NHL.regression %>%  
-  transform(Cntry,Country=as.numeric(factor(Cntry))) %>% mutate(rookie=as.factor(ifelse(NHL.regression$DftYr>2013,1,0)))%>%
+  transform(Cntry,Country=as.numeric(factor(Cntry))) %>% mutate(rookie=ifelse(NHL.regression$DftYr>2013,1,0))%>%
   select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Country, GP, Position, SA,rookie)
 NHL.regression2 <- drop_na(NHL.regression2)
 ```
