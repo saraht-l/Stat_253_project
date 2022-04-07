@@ -21,6 +21,7 @@ library(tidymodels)
 ```
 ```{r}
 tidymodels_prefer()
+Sys.setenv("VROOM_CONNECTION_SIZE" = 131072 * 10)
 hockeypoky <- read_csv('train.csv')
 ```
 
