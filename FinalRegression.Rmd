@@ -667,11 +667,6 @@ collect_metrics(log_cv_fit) #default threshold is 0.5
 
 Our decision tree model outcomes reflect how successful prediction is the likeliest outcome of the data set when using our chosen variables and metrics given that the final node to the far right is the highest percentage of outcomes. If SA is greater than 488, conditions of success will be met and the prediction will be one of success to our investigation question. 
 
-#Random Forest 
-
-##  Random Forest
-
-### Model Specification
 
 3. Display evaluation metrics for different models in a clean, organized way. This display should include both the estimated metric as well as its standard deviation. (This won’t be available from OOB error estimation. If using OOB, don’t worry about reporting the SD.)
 > 
@@ -682,94 +677,12 @@ Our decision tree model outcomes reflect how successful prediction is the likeli
 
 # - end of logisitic regression - #
 
-```{r}
-NHL<-NHL%>%
-  select(-NHL)
-rf_spec <- rand_forest() %>%
-  set_engine(engine = 'ranger') %>% 
-  set_args(mtry = NULL, # size of random subset of variables; default is floor(sqrt(ncol(x)))
-           trees = 50, # Number of bags
-           min_n = 2,
-           probability = FALSE, # want hard predictions first
-           importance = 'impurity') %>% 
-  set_mode('classification') # change this for regression tree
-
-rf_spec
-logistic_rec2 <- recipe(success ~ ., data = NHL)
-
-heart_rf_wf <- workflow() %>%
-  add_model(rf_spec) %>%
-  add_recipe(logistic_rec2)
-```
 
 
 
-### Fit Models
-
-```{r}
-set.seed(123)
-heart_rf_fit <- heart_rf_wf %>%
-  fit(data = NHL)
-
-heart_rf_fit # check out OOB prediction error (accuracy = 1 - OOB prediction error)
-```
 
 
-### Evaluate Models
 
-To  calculate OOB metrics, we need to get the OOB predictions from the fit model.
-
-```{r}
-heart_rf_OOB_output <- tibble(
-  .pred_class = heart_rf_fit %>% extract_fit_engine() %>% pluck('predictions'),
-  success = NHL %>% pull(success))
-
-bag_metrics <- metric_set(sens, yardstick::spec, accuracy)
-
-heart_rf_OOB_output %>% 
-  bag_metrics(truth = success, estimate = .pred_class)
-```
-
-To estimate AUC of ROC curve using OOB predictions, we'll need to refit the model to get the predicted probabilities. 
-
-```{r}
-set.seed(123) #to get the same bootstrap samples, use same seed
-heart_rf_fit2 <- heart_rf_wf %>%
-  update_model(rf_spec %>% set_args(probability = TRUE)) %>%
-  fit(data = NHL)
-head(NHL)
-heart_rf_fit2
-```
-
-```{r}
-heart_rf_OOB_output2 <- bind_cols(
-  heart_rf_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
-  NHL %>% select(success))
-
-heart_rf_OOB_output2 %>% 
-  roc_curve(success, 1, event_level = "first") %>% autoplot()
-
-heart_rf_OOB_output2 %>% 
-  roc_auc(success, 1, event_level = "first") #Area under Curve
-```
-
-### Variable Importance
-
-
-```{r}
-library(vip) #install.packages('vip')
-
-heart_rf_fit %>% extract_fit_engine() %>% vip() #based on impurity
-
-heart_rf_wf %>% #based on permutation
-  update_model(rf_spec %>% set_args(importance = "permutation")) %>%
-  fit(data = NHL) %>% extract_fit_engine() %>% vip()
-```
-
-```{r}
-heart_rf_OOB_output2(data_fit_mtry12,12, land %>% pull(class)) %>%
-    conf_mat(truth = class, estimate= .pred_class)
-```
 
 
 
