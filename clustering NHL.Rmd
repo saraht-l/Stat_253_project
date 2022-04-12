@@ -1,0 +1,92 @@
+---
+title: "Clustering"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+
+```{r}
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(vip)
+library(tidymodels)
+tidymodels_prefer()
+```
+
+# data and data cleaning
+```{r}
+#Testing data
+NHL.test <- read.csv("test.csv")
+
+#Training data
+NHL.train <- read.csv("train.csv")
+NHL.regression <- NHL.train %>%
+  select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Cntry, GP,Position,SA)
+NHL.regression2 <- NHL.regression %>%  
+  transform(Cntry,Country=as.numeric(factor(Cntry))) %>% mutate(rookie=ifelse(NHL.regression$DftYr>2013,1,0))%>%
+  select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Country, GP, Position, SA,rookie)
+NHL.regression2 <- drop_na(NHL.regression2)
+```
+#picking our variables, we picked the variables that were deemed the most important by our random forest
+```{r}
+NHL_sub <- NHL.regression2 %>%
+    select(DftYr,SA,A1,GP,Wt,G,Salary)
+dist_mat_scaled <- dist(scale(NHL_sub))
+hc_complete <- hclust(dist_mat_scaled, method = "complete")
+plot(hc_complete)
+```
+# picking where to cut our dendogram off 
+```{r}
+NHL_sub <- NHL_sub %>%
+    mutate(
+        hclust_height4 = factor(cutree(hc_complete, h = 4)), 
+       hclust_height4.5 = factor(cutree(hc_complete, h = 4.5)),
+        hclust_height5 = factor(cutree(hc_complete, h = 5)),
+       hclust_height6 = factor(cutree(hc_complete, h = 6)),
+       hclust_height2 = factor(cutree(hc_complete, h = 2))
+    )
+ggplot(NHL_sub, aes(x=DftYr, y=Salary, color=hclust_height4)) +
+    geom_jitter()
+ggplot(NHL_sub, aes(x=DftYr, y=Salary, color=hclust_height5)) +
+    geom_jitter()
+ggplot(NHL_sub, aes(x=DftYr, y=Salary, color=hclust_height6)) +
+    geom_jitter()
+ggplot(NHL_sub, aes(x=DftYr, y=Salary, color=hclust_height2)) +
+    geom_jitter()
+```
+# trying different variables adding rookie and position
+
+```{r}
+NHL_sub2 <- NHL.regression2 %>%
+    select(DftYr,SA,A1,GP,Wt,G,Salary,Position,rookie) %>%
+    mutate(Position = as.numeric(as.factor(Position))) %>%
+    mutate(rookie = as.numeric(as.factor(rookie)))
+head(NHL_sub2)
+dist_mat_scaled <- dist(scale(NHL_sub2))
+hc_complete <- hclust(dist_mat_scaled, method = "complete")
+plot(hc_complete)
+```
+# trying different dendogram heights 
+```{r}
+NHL_sub2 <- NHL_sub2 %>%
+    mutate(
+        hclust_height4 = factor(cutree(hc_complete, h = 4)), 
+        hclust_height5 = factor(cutree(hc_complete, h = 5)),
+       hclust_height6 = factor(cutree(hc_complete, h = 6)),
+       hclust_height8 = factor(cutree(hc_complete, h = 8))
+    )
+ggplot(NHL_sub2, aes(x=DftYr, y=Salary, color=hclust_height4)) +
+    geom_jitter()
+ggplot(NHL_sub2, aes(x=DftYr, y=Salary, color=hclust_height5)) +
+    geom_jitter()
+ggplot(NHL_sub2, aes(x=DftYr, y=Salary, color=hclust_height6)) +
+    geom_jitter()
+ggplot(NHL_sub2, aes(x=DftYr, y=Salary, color=hclust_height8)) +
+    geom_jitter()
+
+```
+
