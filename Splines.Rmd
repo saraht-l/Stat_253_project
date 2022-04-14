@@ -8,23 +8,275 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+#Load in packages 
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(readr)
+library(broom)
+library(ggplot2)
+library(tidymodels) 
+tidymodels_prefer()
+library(rpart.plot)
 ```
 
-## Including Plots
+#Load in the datasets
+```{r}
+#Testing data
+NHL.test <- read.csv("test.csv")
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+#Training data
+NHL.train <- read.csv("train.csv")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+#Select 14 variables to use in the regression model
+```{r}
+#Clean the data so that there are 14 variables we are looking at 
+NHL.regression <- NHL.train %>%
+  select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Cntry, GP,Position,SA)
+
+#MGL, OpFOW not found in this dataset 
+#MGL = Games lost due to injury 
+#OpFOW = Opening faceoffs won
+```
+
+#Data cleaning 
+```{r}
+#Transform the data so that it's as.numeric for Country 
+#ideally make the birth year one whole variable instead of a bunch of yes or no (born variables)
+NHL.regression2 <- NHL.regression %>%  
+  transform(Cntry,Country=as.numeric(factor(Cntry))) %>% mutate(rookie=ifelse(NHL.regression$DftYr>2013,1,0))%>%
+  select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Country, GP, Position, SA,rookie)
+NHL.regression2 <- drop_na(NHL.regression2)
+```
+
+#Updated for using natural splines
+```{r}
+# Use natural splines for some of the quantitative predictors to account for non-linearity (GAMs)
+# Use OLS engine
+# Update recipe to include step_ns() for each quantitative predictor you want to allow to be non-linear
+# Determine number of knots (deg_free) and fit a smoothing spline and use edf to inform your choice
+```
+
+```{r}
+ggplot(NHL.regression2, aes(x=Ht, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=Wt, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=Hand, y=Salary)) +
+    geom_boxplot() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=DftRd, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=G, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=A1, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=DftYr, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+
+ggplot(NHL.regression2, aes(x=dzFOL, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+ 
+ ggplot(NHL.regression2, aes(x=GP, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+ 
+ ggplot(NHL.regression2, aes(x=Position, y=Salary)) +
+    geom_boxplot() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    
+    theme_classic()
+ 
+ ggplot(NHL.regression2, aes(x=SA, y=Salary)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_smooth(method = "lm", color = "red", se = FALSE) +
+    theme_classic()
+```
+```{r}
+set.seed(123)
+# Model Spec
+lm_spec <-
+  linear_reg() %>%
+  set_engine(engine = 'lm') %>%
+  set_mode('regression')
+
+NHL <- drop_na(NHL.regression2)
+
+# Original Recipe
+lm_rec <- recipe(Salary ~ Ht + Wt + DftRd + G + A1 + DftYr + dzFOL + GP + SA+ rookie, data = NHL) %>%
+  step_naomit(all_numeric(), skip = TRUE) %>%
+#  step_ns(Ht, deg_free = 3) %>%
+  step_ns(Wt, deg_free = 3) %>%
+  step_ns(DftRd, deg_free = 3) %>%
+  step_ns(G, deg_free = 3) %>%
+#  step_ns(A1, deg_free = 3) %>%
+  step_ns(DftYr, deg_free = 3) %>%
+#  step_ns(dzFOL, deg_free = 3) %>%
+  # step_ns(Country, deg_free = 3) %>%
+  step_ns(GP, deg_free = 3) %>%
+  step_ns(SA, deg_free = 3)
+
+splines_wf <- workflow() %>% 
+  add_recipe(lm_rec) %>%
+  add_model(lm_spec)
+NHL.cv6 <- vfold_cv(NHL, v=6)
+
+# CV to Evaluate
+cv_output <- fit_resamples(
+  splines_wf, # workflow
+  resamples = NHL.cv6, # cv folds
+  metrics = metric_set(mae)
+)
+
+# cv_output[[4]][[1]]$.notes
+
+cv_output %>% 
+  collect_metrics()
+
+# Fit with all data
+ns_mod <- fit(
+  splines_wf, #workflow
+  data = NHL
+)
+
+```
+
+```{r}
+
+spline_mod_output <- NHL %>%
+    bind_cols(predict(ns_mod, new_data = NHL)) %>% #generates a column of predictions 
+    # bind_cols(NHL) %>% #takes what you are inputting and binds it to something else
+    mutate(resid = Salary - .pred)
+
+head(spline_mod_output)
+
+ggplot(spline_mod_output, aes(x = .pred, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+
+# Residuals vs. predictors (x's)
+#ggplot(spline_mod_output, aes(x = Ht, y = resid)) +
+#    geom_point() +
+#    geom_smooth() +
+#    geom_hline(yintercept = 0, color = "red") +
+#    theme_classic()
+
+ggplot(spline_mod_output, aes(x = Wt, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = DftRd, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = G, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+#ggplot(spline_mod_output, aes(x = A1, y = resid)) +
+#    geom_point() +
+#    geom_smooth() +
+#    geom_hline(yintercept = 0, color = "red") +
+#    theme_classic()
+
+ggplot(spline_mod_output, aes(x = DftYr, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+#ggplot(spline_mod_output, aes(x = dzFOL, y = resid)) +
+#    geom_point() +
+#    geom_smooth() +
+#    geom_hline(yintercept = 0, color = "red") +
+#    theme_classic()
+
+ggplot(spline_mod_output, aes(x = GP, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(spline_mod_output, aes(x = SA, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+```
+
+```{r}
+tune_output %>% collect_metrics() %>% filter(penalty == (best_penalty %>% pull(penalty)))
+
+cv_output %>% collect_metrics()
+```
+```{r}
+# make a plot of predicted vs actual for the salary 
+
+spline_mod_output %>%
+  ggplot()+
+  geom_point(aes(x=Salary, y=.pred))+
+  theme_minimal()
+```
+
+
+
+Compare insights from variable importance analyses here and the corresponding results from Homework 1.
+Now after having accounted for nonlinearity, have the most relevant predictors changed?
+> Looking at our analysis of our linear model, the most relevant predictors are shots on goal allowed while players were on ice (SA), handedness of players (Hand), round in which the player was drafted (DftRd), players’ first assists (A1), and number of goals (G). 
+Now that we have accounted for non-linearity, the most relevant predictors appear to be 
+
+Do you gain any insights from the GAM output plots (easily obtained from fitting smoothing splines) for each predictor?
+> Salary for hockey players is capped at some point, no matter how many seasonal assists and other ways that they contribute to the team. This relationship is inherently nonlinear, so it is helpful to have a GAM to model that relationship. 
+The more goals and individual scores and the more games played and shots against opponent, the higher the residulas become and the more variability in the accuracy of the prediction. 
+
+Compare model performance between your GAM models to the model that assume linearity. 
+How does test performance of the GAMs compare to other models you explored?
+> Our GAM model has a mean test error of 1,087,752 while the model that assumes linearity has a test error of 125,872. The test performace of the GAMs/splines made the model much worse than the model that assumed linearity. It may also be due to the fact that we took out some variables that we believed were linear variables and perhaps those variables contributed a lot to achieving a low test error. 
+
+Decide on an overall best model based on your investigations so far. To do this, make clear your analysis goals. Predictive accuracy? Interpretability? A combination of both?
+> We hope to have predictive accuracy because playing in the NHL is a job and those considering this job may want to understand how their performance on the team will play a role on how much they earn each season. Therefore, we believe that the model that assumes linearity is the best model because it has the lowest test error compared to GAMs by a lot. 
+
+Are there any harms that may come from your analyses and/or how the data were collected? What cautions do you want to keep in mind when communicating your work?
+> We hope to change the draft round and edit the data set a little bit. SOMETHING ABOUT THE DRAFT YEAR???? FILL THIS PART IN???

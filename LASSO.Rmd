@@ -49,6 +49,8 @@ NHL.regression2 <- NHL.regression %>%
   transform(Cntry,Country=as.numeric(factor(Cntry))) %>% mutate(rookie=ifelse(NHL.regression$DftYr>2013,1,0))%>%
   select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Country, GP, Position, SA,rookie)
 NHL.regression2 <- drop_na(NHL.regression2)
+
+NHL <- drop_na(NHL.regression2)
 ```
 
 #Creation of CV folds 
