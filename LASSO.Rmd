@@ -1,0 +1,315 @@
+---
+title: "LASSO"
+author: "Claire McHenry"
+date: "4/14/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Load in packages 
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(readr)
+library(broom)
+library(ggplot2)
+library(tidymodels) 
+tidymodels_prefer()
+library(rpart.plot)
+```
+
+
+#Load in the datasets
+```{r}
+#Testing data
+NHL.test <- read.csv("test.csv")
+
+#Training data
+NHL.train <- read.csv("train.csv")
+```
+
+#Select 14 variables to use in the regression model
+```{r}
+#Clean the data so that there are 14 variables we are looking at 
+NHL.regression <- NHL.train %>%
+  select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Cntry, GP,Position,SA)
+
+#MGL, OpFOW not found in this dataset 
+#MGL = Games lost due to injury 
+#OpFOW = Opening faceoffs won
+```
+
+#Data cleaning 
+```{r}
+#Transform the data so that it's as.numeric for Country 
+#ideally make the birth year one whole variable instead of a bunch of yes or no (born variables)
+NHL.regression2 <- NHL.regression %>%  
+  transform(Cntry,Country=as.numeric(factor(Cntry))) %>% mutate(rookie=ifelse(NHL.regression$DftYr>2013,1,0))%>%
+  select(Salary, Ht, Wt, Hand, DftRd, G, A1, DftYr, dzFOL, Country, GP, Position, SA,rookie)
+NHL.regression2 <- drop_na(NHL.regression2)
+```
+
+#Creation of CV folds 
+```{r}
+set.seed(123)
+# 6 fold cross validation
+NHL.cv6 <- vfold_cv(NHL.regression2, v=6)
+```
+
+#Model spec
+```{r}
+# model specification for OLS
+ols.spec <-
+    linear_reg() %>% 
+    set_engine(engine = 'lm') %>% 
+    set_mode('regression')
+
+# model recipe 
+lm.recipe <- recipe(Salary ~ ., data = NHL.regression2) %>%
+    step_nzv(all_predictors()) %>% # removes variables with the same value
+    step_corr(all_numeric_predictors()) %>%
+    step_normalize(all_numeric_predictors()) %>% # important standardization step for LASSO
+    step_dummy(all_nominal_predictors()) # creates indicator variables for categorical variables
+
+# model workflow
+lm.workflow <- workflow() %>%
+    add_recipe(lm.recipe) %>%
+    add_model(ols.spec)
+
+# fit the model
+
+full_model <- fit(lm.workflow, data = NHL.regression2) 
+full_model %>% tidy()
+
+```
+
+#Calculate and collect CV metrics
+```{r}
+mod1.cv <- fit_resamples(lm.workflow,
+  resamples = NHL.cv6, 
+  metrics = metric_set(mae,rsq,rmse)
+) %>%
+
+collect_metrics(summarize=TRUE)
+
+mod1.cv
+
+model2.cv<-fit_resamples(lm.workflow, #model refits to different cross validation folds
+    resamples=NHL.cv6,metrics = metric_set(mae,rsq,rmse))
+model2.cv %>% collect_metrics(summarize=TRUE) #shows rsq, mse, rmse values.
+```
+
+#LASSO
+```{r}
+# Model specifications LASSO
+lasso.spec <- 
+  linear_reg() %>%
+  set_args(mixture = 1, penalty = tune()) %>% ## mixture = 1 indicates Lasso
+  set_engine(engine = 'glmnet') %>% #note we are using a different engine
+  set_mode('regression') 
+
+# rec is same as OLS
+
+# Workflow (Recipe + Model)
+lasso_wf_tune <- workflow() %>% 
+  add_recipe(lm.recipe) %>% # recipe defined above
+  add_model(lasso.spec) 
+
+# Tune Model (trying a variety of values of Lambda penalty)
+penalty_grid <- grid_regular(
+  penalty(range = c(0, 8)), #log10 transformed
+  levels = 30)
+
+
+tune_output <- tune_grid( # new function for tuning parameters
+  lasso_wf_tune, # workflow
+  resamples = NHL.cv6, # cv folds
+  metrics = metric_set(rmse, mae),
+  grid = penalty_grid # penalty grid defined above
+)
+
+# Select best model & fit
+best_penalty <- tune_output %>% 
+  select_by_one_std_err(metric = 'mae', desc(penalty))
+
+ls_mod <-  best_penalty  %>% 
+  finalize_workflow(lasso_wf_tune,.) %>%
+  fit(data = NHL.regression2) 
+    
+# Note which variable is the "least" important    
+ls_mod %>% tidy()
+
+Credit_final_wk <- finalize_workflow(lasso_wf_tune, best_penalty) # incorporates penalty value to workflow
+ 
+Credit_final_fit <- fit(Credit_final_wk, data = NHL.regression2)
+
+tidy(Credit_final_fit)
+
+```
+
+#Fit and tune models 
+```{r}
+tune_output %>% collect_metrics() %>% filter(penalty == (best_penalty %>% pull(penalty)))#metrics for first lasso model 
+LASSOCV.cv<-fit_resamples(Credit_final_wk, #model refits to different cross validation folds
+    resamples=NHL.cv6)
+LASSOCV.cv %>% collect_metrics(summarize=TRUE) #shows rsq, and rmse values.
+```
+
+#Visualize redisuals 
+```{r}
+#Evaluate whether some quantitative predictors might be better modeled with nonlinear relationships
+
+LASSO_mod_output <- NHL.regression2%>%
+  bind_cols(predict(Credit_final_fit,new_data=NHL.regression2 ))%>%
+  mutate(resid=Salary-.pred)
+
+
+head(LASSO_mod_output)
+
+ggplot(LASSO_mod_output, aes(x = .pred, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(LASSO_mod_output, aes(x = Ht, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ggplot(LASSO_mod_output, aes(x = Wt, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(LASSO_mod_output, aes(x = Hand, y = resid)) +
+    geom_boxplot() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(LASSO_mod_output, aes(x = DftRd, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(LASSO_mod_output, aes(x = G, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(LASSO_mod_output, aes(x = A1, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ggplot(LASSO_mod_output, aes(x = DftYr, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ggplot(LASSO_mod_output, aes(x = dzFOL, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ggplot(LASSO_mod_output, aes(x = Country, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+
+ ggplot(LASSO_mod_output, aes(x = GP, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(LASSO_mod_output, aes(x = Position, y = resid)) +
+    geom_boxplot() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+  ggplot(LASSO_mod_output, aes(x = SA, y = resid)) +
+    geom_point() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+ 
+ ggplot(LASSO_mod_output, aes(x = rookie, y = resid)) +
+    geom_boxplot() +
+    geom_smooth() +
+    geom_hline(yintercept = 0, color = "red") +
+    theme_classic()
+```
+
+Which variables are most important predictors of your quantitative outcome? Justify your answer. Do the methods you've applied reach consensus on which variables are most important? What insights are expected? Surprising? NOTE: if some (but not all) of the indicator terms for a categorical predictor are selected in the final models, the whole predictor should be treated as selected. 
+
+
+```{r}
+
+glmnet_output <- Credit_final_fit %>% extract_fit_parsnip() %>% pluck('fit') # way to get the original glmnet output
+
+lambdas <- glmnet_output$lambda
+coefs_lambdas <- 
+  coefficients(glmnet_output, s = lambdas )  %>% 
+  as.matrix() %>%  
+  t() %>% 
+  as.data.frame() %>% 
+  mutate(lambda = lambdas ) %>% 
+  select(lambda, everything(), -`(Intercept)`) %>% 
+  pivot_longer(cols = -lambda, 
+               names_to = "term", 
+               values_to = "coef") %>%
+  mutate(var = map_chr(stringr::str_split(term,"_"),~.[1]))
+
+coefs_lambdas %>%
+  ggplot(aes(x = lambda, y = coef, group = term, color = var)) +
+  geom_line() +
+  geom_vline(xintercept = best_penalty %>% pull(penalty), linetype = 'dashed') + 
+  theme_classic() + 
+  theme(legend.position = "bottom", legend.text=element_text(size=8))
+```
+
+
+Best overall model based on investigations so far? Predictive accuracy? Interpretability? A combination of both?
+```{r}
+tune_output %>% collect_metrics() %>% filter(penalty == (best_penalty %>% pull(penalty)))#metrics for first lasso model 
+LASSOCV.cv<-fit_resamples(Credit_final_wk, #model refits to different cross validation folds
+    resamples=NHL.cv6,metrics = metric_set(mae,rsq,rmse))
+LASSOCV.cv %>% collect_metrics(summarize=TRUE) 
+mod1.cv <- fit_resamples(lm.workflow,
+  resamples = NHL.cv6, 
+  metrics = metric_set(mae,rsq,rmse)
+) %>%
+
+collect_metrics(summarize=TRUE)
+
+mod1.cv
+
+model2.cv<-fit_resamples(lm.workflow, #model refits to different cross validation folds
+    resamples=NHL.cv6,metrics = metric_set(mae,rsq,rmse))
+model2.cv %>% collect_metrics(summarize=TRUE) #shows rsq, mse, rmse values.
+```
+
+Summarize investigations
+Decide on an overall best model based on your investigations so far. To do this, make clear your analysis goals. Predictive accuracy? Interpretability? A combination of both?
+> We are unclear what the best model is based on our investigations thus far. We are aware that a lot of our variables are not linear as shown in our residual plots. We also know that some of our variables willl likely need to be transformed and we will possbily have to include an interaction term in our regression models. 
+Our goals include understanding which of these 14 variables predicts the NHL salary of all players. Right now, there is terrible predictive accuracy. 
+
+
+Are there any harms that may come from your analyses and/or how the data were collected? What cautions do you want to keep in mind when communicating your work? 
+
+> By making these assessments and pushing out our findings we could be harming outlier players. For example, if our models end up showing that athletes of specific height and specific weight are more likely to succeed, incoming athletes into the NHL may start to desire those weights which could harm them psychologically. However, despite being a weight that may get less pay, there is a possibility that they are an outlier player who could get paid more. 
+
+> Additionally, this data is from the 2016 to 2017 season. As the economy changes, inflation occurs, and the interest in the NHL fluctuates, this will influence the salary of players. We want to keep in mind that when we communicate this data, we make it clear the time period this data reflects and make it known that it may not be completely applicable to previous or future NHL season. 
