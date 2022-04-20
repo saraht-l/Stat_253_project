@@ -75,15 +75,28 @@ lm.recipe <- recipe(Salary ~ ., data = NHL.regression2) %>%
     step_normalize(all_numeric_predictors()) %>% # important standardization step for LASSO
     step_dummy(all_nominal_predictors()) # creates indicator variables for categorical variables
 
+lm.recipe2 <- recipe(Salary ~ rookie + A1 + dzFOL + DftRd + G , data = NHL.regression2) %>%
+    step_nzv(all_predictors()) %>% # removes variables with the same value
+    step_corr(all_numeric_predictors()) %>%
+    step_normalize(all_numeric_predictors()) %>% # important standardization step for LASSO
+    step_dummy(all_nominal_predictors()) # creates indicator variables for categorical variables
+
 # model workflow
 lm.workflow <- workflow() %>%
     add_recipe(lm.recipe) %>%
     add_model(ols.spec)
 
+lm.workflow2 <- workflow() %>%
+    add_recipe(lm.recipe2) %>%
+    add_model(ols.spec)
 # fit the model
 
 full_model <- fit(lm.workflow, data = NHL.regression2) 
 full_model %>% tidy()
+
+
+full_model2 <- fit(lm.workflow2, data = NHL.regression2) 
+full_model2 %>% tidy()
 
 ```
 
@@ -97,11 +110,18 @@ mod1.cv <- fit_resamples(lm.workflow,
 collect_metrics(summarize=TRUE)
 
 mod1.cv
-
-model2.cv<-fit_resamples(lm.workflow, #model refits to different cross validation folds
-    resamples=NHL.cv6,metrics = metric_set(mae,rsq,rmse))
-model2.cv %>% collect_metrics(summarize=TRUE) #shows rsq, mse, rmse values.
 ```
+```{r}
+mod2.cv <- fit_resamples(lm.workflow2,
+  resamples = NHL.cv6, 
+  metrics = metric_set(mae,rsq,rmse)
+) %>%
+
+collect_metrics(summarize=TRUE)
+
+mod2.cv
+```
+
 
 #LASSO
 ```{r}
@@ -151,6 +171,43 @@ tidy(Credit_final_fit)
 
 ```
 
+```{r}
+lasso_wf_tune2 <- workflow() %>% 
+  add_recipe(lm.recipe2) %>% # recipe defined above
+  add_model(lasso.spec) 
+
+# Tune Model (trying a variety of values of Lambda penalty)
+penalty_grid2 <- grid_regular(
+  penalty(range = c(0, 8)), #log10 transformed
+  levels = 30)
+
+
+tune_output2 <- tune_grid( # new function for tuning parameters
+  lasso_wf_tune2, # workflow
+  resamples = NHL.cv6, # cv folds
+  metrics = metric_set(rmse, mae),
+  grid = penalty_grid2 # penalty grid defined above
+)
+
+# Select best model & fit
+best_penalty2 <- tune_output2 %>% 
+  select_by_one_std_err(metric = 'mae', desc(penalty))
+
+ls_mod2 <-  best_penalty2  %>% 
+  finalize_workflow(lasso_wf_tune2,.) %>%
+  fit(data = NHL.regression2) 
+    
+# Note which variable is the "least" important    
+ls_mod2 %>% tidy()
+
+Credit_final_wk2 <- finalize_workflow(lasso_wf_tune2, best_penalty2) # incorporates penalty value to workflow
+ 
+Credit_final_fit2 <- fit(Credit_final_wk2, data = NHL.regression2)
+
+tidy(Credit_final_fit2)
+```
+
+
 #Fit and tune models 
 ```{r}
 tune_output %>% collect_metrics() %>% filter(penalty == (best_penalty %>% pull(penalty)))#metrics for first lasso model 
@@ -158,6 +215,14 @@ LASSOCV.cv<-fit_resamples(Credit_final_wk, #model refits to different cross vali
     resamples=NHL.cv6)
 LASSOCV.cv %>% collect_metrics(summarize=TRUE) #shows rsq, and rmse values.
 ```
+
+```{r}
+tune_output2 %>% collect_metrics() %>% filter(penalty == (best_penalty2 %>% pull(penalty)))#metrics for first lasso model 
+LASSOCV.cv2 <-fit_resamples(Credit_final_wk2, #model refits to different cross validation folds
+    resamples=NHL.cv6)
+LASSOCV.cv2 %>% collect_metrics(summarize=TRUE) #shows rsq, and rmse values.
+```
+
 
 #Visualize redisuals 
 ```{r}
